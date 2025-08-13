@@ -4,7 +4,8 @@ import Splash from "./pages/Splash.jsx";
 export default function App() {
   return (
     <div>
-      <Splash />
+      <Splash /> 
+      {/* hi aditya */}
     </div>
   );
 }
