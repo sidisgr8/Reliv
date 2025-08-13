@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
+import { useNavigate } from "react-router-dom";
 
 export default function CustomerDetails() {
+  const navigate = useNavigate();
   const [slideUp, setSlideUp] = useState(false);
 
   useEffect(() => {
@@ -79,7 +81,8 @@ export default function CustomerDetails() {
           </div>
 
           {/* Proceed button */}
-          <PrimaryButton className="w-full justify-center">
+          <PrimaryButton className="w-full justify-center"
+          onClick={() => navigate("/two-options")}>
             Proceed →
           </PrimaryButton>
         </div>
