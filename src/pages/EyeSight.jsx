@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
+import eyeChartImg from "../assets/eye-chart.png";
 
 /**
  * Splash screen before Eye Sight test
@@ -87,7 +88,7 @@ const EyeSightTest = ({ onNext }) => {
             {/* Eye chart image */}
             <div className="w-full mb-4">
               <img
-                src="/assets/eye-chart.png"
+                src={eyeChartImg}
                 alt="Eye Sight Chart"
                 className="w-full object-contain"
               />
