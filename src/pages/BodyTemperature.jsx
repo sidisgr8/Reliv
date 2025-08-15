@@ -4,6 +4,7 @@ import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
+import ClockTimerVideo from "../assets/ClockTimer.mp4"; // <-- Import ClockTimer.mp4
 
 // ---------------- Splash Screen ----------------
 const Splash = ({ onComplete }) => {
@@ -120,9 +121,12 @@ const BodyTemperaturePage = () => {
 
           {/* Illustration */}
           <div className="w-full max-w-[150px] mb-3">
-            <img
-              src={MeditatingGirlVideo}
-              alt="Clock Illustration"
+            <video
+              src={ClockTimerVideo} // <-- Use ClockTimer.mp4 here
+              autoPlay
+              loop
+              muted
+              playsInline
               className="w-full h-auto"
             />
           </div>
