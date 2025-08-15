@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from "react";
+import Logo from "../components/Logo"; // 1️⃣ Import Logo from components
+import PrimaryButton from "../components/PrimaryButton"; // <-- Add this import
+import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4"; // 2️⃣ Import video
 
 // --- Reusable UI Components ---
-
-const Logo = () => {
-  return (
-    <h1 className="text-[28px] font-bold">
-      <span className="text-[#E85C25]">Re</span>
-      <span className="text-black">liv</span>
-    </h1>
-  );
-};
 
 const WaveBackground = ({ className }) => {
   return (
@@ -50,7 +44,7 @@ const HealthCheckPage = ({ onComplete }) => {
       </button>
       <div className="relative z-[2] h-full flex flex-col items-center justify-center pb-20">
         <div className="mb-6">
-            <Logo />
+          <Logo />
         </div>
         <h2 className="text-[20px] font-normal text-center leading-snug mb-4">
           You chose <span className="font-bold">Health</span>
@@ -73,82 +67,120 @@ const HealthCheckPage = ({ onComplete }) => {
   );
 };
 
-// BloodPressure Page (defined here to prevent import errors)
-const BloodPressure = () => {
-    return (
-        <div className="relative w-full h-screen bg-white font-sans overflow-hidden">
-            {/* Background Wave */}
-            <div className="absolute top-0 left-0 w-full h-[60%] z-0 bg-[#FFF1EA]" style={{ clipPath: 'ellipse(120% 100% at 50% -40%)' }}></div>
+// BloodPressure Page
+const BloodPressure = ({ onProceed }) => {
+  // 3️⃣ Use state for diastolic and systolic
+  const [diastolic, setDiastolic] = useState("");
+  const [systolic, setSystolic] = useState("");
 
-            {/* Content laid out with Flexbox */}
-            <div className="relative z-10 h-full flex flex-col p-5">
-                {/* Top Bar with Back Arrow */}
-                <header className="flex-shrink-0 flex items-center">
-                    <button onClick={() => window.history.back()} className="text-3xl text-gray-800">
-                        ←
-                    </button>
-                </header>
+  return (
+    <div className="relative w-full h-screen bg-white font-sans overflow-hidden">
+      {/* Background Wave */}
+      <div
+        className="absolute top-0 left-0 w-full h-[60%] z-0 bg-[#FFF1EA]"
+        style={{ clipPath: "ellipse(120% 100% at 50% -40%)" }}
+      ></div>
 
-                {/* Main Content Area */}
-                <main className="flex-grow flex flex-col items-center pt-2">
-                    <Logo />
-                    <h2 className="text-2xl font-bold text-gray-800 mt-4 mb-6">Blood Pressure</h2>
-                    
-                    {/* Calculated Box */}
-                    <div className="bg-white rounded-xl p-5 w-full max-w-xs shadow-md">
-                        <h3 className="text-lg font-semibold text-center text-gray-700 mb-4">Calculated</h3>
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                                <label className="text-gray-600 font-medium">Diastolic</label>
-                                <div className="w-28 text-center p-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-800">120</div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <label className="text-gray-600 font-medium">Systolic</label>
-                                <div className="w-28 text-center p-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-800">60</div>
-                            </div>
-                        </div>
-                    </div>
-                </main>
+      {/* Content laid out with Flexbox */}
+      <div className="relative z-10 h-full flex flex-col p-5">
+        {/* Top Bar with Back Arrow */}
+        <header className="flex-shrink-0 flex items-center">
+          <button
+            onClick={() => window.history.back()}
+            className="text-3xl text-gray-800"
+          >
+            ←
+          </button>
+        </header>
 
-                {/* Bottom Section */}
-                <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4">
-                    {/* Illustration */}
-                    <div className="w-full max-w-xs h-48 mb-4">
-                         <img 
-                            src="https://ik.imagekit.io/storyset/illustrations/meditating/pana.svg" 
-                            alt="Woman meditating" 
-                            className="w-full h-full object-contain"
-                         />
-                    </div>
+        {/* Main Content Area */}
+        <main className="flex-grow flex flex-col items-center pt-2">
+          <Logo />
+          <h2 className="text-2xl font-bold text-gray-800 mt-4 mb-6">
+            Blood Pressure
+          </h2>
 
-                    {/* Pagination */}
-                    <div className="flex items-center space-x-2">
-                        <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
-                        <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                        <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                        <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                        <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                        <span className="text-xs text-gray-500 ml-2">1/5 complete</span>
-                    </div>
-                </footer>
+          {/* Calculated Box */}
+          <div className="bg-white rounded-xl p-5 w-full max-w-xs shadow-md">
+            <h3 className="text-lg font-semibold text-center text-gray-700 mb-4">
+              Calculated
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-gray-600 font-medium">Diastolic</label>
+                <input
+                  type="number"
+                  value={diastolic}
+                  onChange={(e) => setDiastolic(e.target.value)}
+                  className="w-28 text-center p-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-800"
+                  placeholder="Enter"
+                />
+              </div>
+              <div className="flex justify-between items-center">
+                <label className="text-gray-600 font-medium">Systolic</label>
+                <input
+                  type="number"
+                  value={systolic}
+                  onChange={(e) => setSystolic(e.target.value)}
+                  className="w-28 text-center p-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-800"
+                  placeholder="Enter"
+                />
+              </div>
             </div>
-        </div>
-    );
+          </div>
+        </main>
+
+        {/* Bottom Section */}
+        <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4">
+          {/* Video Illustration */}
+          <div className="w-full max-w-xs h-48 mb-4">
+            <video
+              src={MeditatingGirlVideo}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-contain"
+            />
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center space-x-2">
+            <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <span className="text-xs text-gray-500 ml-2">1/5 complete</span>
+          </div>
+
+          {/* Proceed Button */}
+          <PrimaryButton
+            className="w-full max-w-xs mt-4 justify-center"
+            onClick={onProceed}
+          >
+            Proceed &rarr;
+          </PrimaryButton>
+        </footer>
+      </div>
+    </div>
+  );
 };
 
 // Main App component to control page navigation
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('splash');
+  const [currentPage, setCurrentPage] = useState("splash");
 
-  const showNextPage = () => {
-    setCurrentPage('next');
+  const showNextPage = () => setCurrentPage("blood");
+  const goToOxygenPulse = () => {
+    window.location.href = "/oxygen-pulse";
   };
 
   switch (currentPage) {
-    case 'splash':
+    case "splash":
       return <HealthCheckPage onComplete={showNextPage} />;
-    case 'next':
-      return <BloodPressure />;
+    case "blood":
+      return <BloodPressure onProceed={goToOxygenPulse} />;
     default:
       return <HealthCheckPage onComplete={showNextPage} />;
   }
