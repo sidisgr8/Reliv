@@ -3,6 +3,7 @@ import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
+import BodyTemperature from "./BodyTemperature";
 
 /**
  * Splash screen before Oxygen & Pulse page
@@ -57,12 +58,8 @@ const Splash = ({ onComplete }) => {
 
 /**
  * Main Oxygen & Pulse page
- * - No "calculating" intermediate state: inputs appear immediately after splash.
- * - Layout tuned to fit within viewport (no scroll) at 100% Chrome zoom.
- * - Proceed button placed below pagination (2/5 complete).
- * - HR (divider) width matches the card (max-w-xs).
  */
-const OxygenPulsePage = () => {
+const OxygenPulsePage = ({ onProceed }) => {
   const [oxygen, setOxygen] = useState("");
   const [pulse, setPulse] = useState("");
 
@@ -83,7 +80,7 @@ const OxygenPulsePage = () => {
           </button>
         </header>
 
-        {/* Main area: center aligned and constrained to card width */}
+        {/* Main area */}
         <main className="flex-grow flex flex-col items-center justify-center px-4">
           <div className="w-full max-w-xs">
             <div className="flex justify-center">
@@ -98,7 +95,7 @@ const OxygenPulsePage = () => {
               Please place your finger in the pulse oximeter
             </p>
 
-            {/* Calculated card with inputs */}
+            {/* Calculated card */}
             <div className="bg-white rounded-xl p-5 w-full shadow-md mt-2">
               <h3 className="text-lg font-semibold text-gray-700 mb-2 text-center">
                 Calculated
@@ -107,7 +104,6 @@ const OxygenPulsePage = () => {
                 Kindly enter the values shown
               </p>
 
-              {/* Inputs side-by-side (aligned like HealthCheckup.jsx) */}
               <div className="flex w-full gap-3">
                 <div className="flex flex-col items-center flex-1">
                   <label className="text-sm text-gray-700 mb-1">Oxygen</label>
@@ -137,9 +133,9 @@ const OxygenPulsePage = () => {
           </div>
         </main>
 
-        {/* Footer: video, divider (same width as card), pagination & Proceed */}
+        {/* Footer */}
         <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4 pt-3">
-          {/* Illustration - smaller height so everything fits */}
+          {/* Illustration */}
           <div className="w-full max-w-xs h-28 mb-3">
             <video
               src={MeditatingGirlVideo}
@@ -151,22 +147,25 @@ const OxygenPulsePage = () => {
             />
           </div>
 
-          {/* Divider whose width matches the card (max-w-xs) */}
+          {/* Divider */}
           <hr className="w-full max-w-xs border-t border-black mb-3" />
 
-          {/* Pagination + proceed button stacked with small gap */}
+          {/* Pagination + button */}
           <div className="w-full max-w-xs flex flex-col items-center space-y-3">
             <div className="flex items-center space-x-2">
               <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
               <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
               <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
               <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-              <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-              <span className="text-xs text-gray-500 ml-2">2/5 complete</span>
+              <span className="text-xs text-gray-500 ml-2">2/4 complete</span>
             </div>
 
-            {/* Proceed button below the pagination (visible immediately) */}
-            <PrimaryButton className="w-full justify-center">Proceed →</PrimaryButton>
+            <PrimaryButton
+              className="w-full justify-center"
+              onClick={onProceed}
+            >
+              Proceed →
+            </PrimaryButton>
           </div>
         </footer>
       </div>
@@ -175,19 +174,22 @@ const OxygenPulsePage = () => {
 };
 
 /**
- * Wrapper with splash logic
+ * Wrapper with splash logic + navigation to BodyTemperature
  */
 export default function OxygenPulse() {
   const [currentPage, setCurrentPage] = useState("splash");
 
-  const showNext = () => setCurrentPage("oxygen");
+  const showOxygenPage = () => setCurrentPage("oxygen");
+  const showBodyTemperature = () => setCurrentPage("bodyTemp");
 
   switch (currentPage) {
     case "splash":
-      return <Splash onComplete={showNext} />;
+      return <Splash onComplete={showOxygenPage} />;
     case "oxygen":
-      return <OxygenPulsePage />;
+      return <OxygenPulsePage onProceed={showBodyTemperature} />;
+    case "bodyTemp":
+      return <BodyTemperature />;
     default:
-      return <Splash onComplete={showNext} />;
+      return <Splash onComplete={showOxygenPage} />;
   }
 }
