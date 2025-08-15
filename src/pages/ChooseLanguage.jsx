@@ -1,16 +1,41 @@
 import React, { useEffect, useState } from "react";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
+import i18n from "i18next"; // Import i18n instance
 
 export default function ChooseLanguage() {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const [slideUp, setSlideUp] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setSlideUp(true), 20);
     return () => clearTimeout(t);
   }, []);
+
+  const handleLanguageSelect = (langCode) => {
+    setSelectedLanguage(langCode);
+
+    // Change language in i18next
+    i18n.changeLanguage(langCode);
+
+    // Save preference locally
+    localStorage.setItem("appLanguage", langCode);
+  };
+
+  const handleProceed = () => {
+    if (selectedLanguage) {
+      navigate("/customer-details");
+    }
+  };
+
+  // Language options with display labels & codes
+  const languages = [
+    { label: "English", code: "en" },
+    { label: "हिन्दी", code: "hi" },
+    { label: "বাংলা", code: "bn" },
+  ];
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans overflow-hidden">
@@ -31,19 +56,27 @@ export default function ChooseLanguage() {
 
           {/* Language options */}
           <div className="space-y-4 mb-6">
-            {["English", "Hindi", "Bengali"].map((lang) => (
+            {languages.map(({ label, code }) => (
               <button
-                key={lang}
-                className="w-full border border-gray-300 rounded-lg py-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                key={code}
+                onClick={() => handleLanguageSelect(code)}
+                className={`w-full border rounded-lg py-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                  selectedLanguage === code
+                    ? "border-orange-500 bg-orange-50"
+                    : "border-gray-300"
+                }`}
               >
-                {lang}
+                {label}
               </button>
             ))}
           </div>
 
           {/* Proceed button */}
-          <PrimaryButton className="w-full justify-center"
-          onClick={() => navigate("/customer-details")}>
+          <PrimaryButton
+            className="w-full justify-center"
+            onClick={handleProceed}
+            disabled={!selectedLanguage}
+          >
             Proceed →
           </PrimaryButton>
         </div>

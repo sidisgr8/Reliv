@@ -1,0 +1,22 @@
+{
+  "welcome": "हमारी वेबसाइट पर आपका स्वागत है!",
+  "choose_language": "अपनी भाषा चुनें",
+  "introMessage": "शुरू करने के लिए कुछ सवाल",
+  "whoIsReliv": "आज Reliv किसका ख्याल रख रहा है",
+  "enterName": "अपना नाम दर्ज करें",
+  "enterAge": "अपनी उम्र दर्ज करें",
+  "enterEmail": "अपना ईमेल दर्ज करें",
+  "enterPhone": "अपना फ़ोन नंबर दर्ज करें",
+  "selectGender": "अपना लिंग चुनें",
+  "male": "पुरुष",
+  "female": "महिला",
+  "others": "अन्य",
+  "proceed": "आगे बढ़ें →",
+
+  "great": "बहुत बढ़िया!",
+  "how_can_we_help": "आज हम आपकी कैसे मदद कर सकते हैं?",
+  "please_select_option": "कृपया नीचे दिए गए विकल्प में से एक चुनें",
+  "health_checkup": "स्वास्थ्य जांच",
+  "medicine_dispensing": "दवा वितरण",
+  "go_back": "वापस जाएँ"
+}

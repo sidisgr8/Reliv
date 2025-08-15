@@ -1,0 +1,22 @@
+{
+  "welcome": "Welcome to our website!",
+  "choose_language": "Choose your language",
+  "introMessage": "A couple of questions to start",
+  "whoIsReliv": "Who is Reliv taking care of today",
+  "enterName": "Enter your name",
+  "enterAge": "Enter your age",
+  "enterEmail": "Enter your email",
+  "enterPhone": "Enter your Phone no.",
+  "selectGender": "Select your Gender",
+  "male": "Male",
+  "female": "Female",
+  "others": "Others",
+  "proceed": "Proceed →",
+
+  "great": "Great!",
+  "how_can_we_help": "How can we help you today?",
+  "please_select_option": "Please select one option below",
+  "health_checkup": "Health Checkup",
+  "medicine_dispensing": "Medicine Dispensing",
+  "go_back": "Go Back"
+}
