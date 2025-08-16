@@ -70,17 +70,40 @@ export default function Report() {
 
   const generatePdf = async () => {
     const content = pdfRef.current;
+    if (!content) return;
+  
     content.classList.add('pdf-render');
+  
     const canvas = await html2canvas(content, {
-      scale: 2, 
+      scale: 2,
       backgroundColor: '#ffffff',
+      useCORS: true,
+      windowWidth: content.scrollWidth,
+      windowHeight: content.scrollHeight,
     });
+  
     content.classList.remove('pdf-render');
+  
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
+    
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    let heightLeft = pdfHeight;
+    let position = 0;
+  
+    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+    heightLeft -= pageHeight;
+  
+    while (heightLeft > 0) {
+      position = heightLeft - pdfHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+    }
+    
     return pdf;
   };
 
@@ -169,6 +192,11 @@ export default function Report() {
           <button onClick={handleSendEmail} disabled={sending || !patient.email} className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
             {sending ? "Sending..." : "Email Report"}
           </button>
+          {sending && (
+            <span className="block w-full text-center text-xs text-gray-500 mt-2">
+              😉 Your report will be sent within a day!
+            </span>
+          )}
           <button onClick={handleDownloadPdf} className="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
             Download PDF
           </button>
