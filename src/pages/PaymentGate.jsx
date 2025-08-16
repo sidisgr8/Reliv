@@ -32,7 +32,7 @@ const PaymentGate = () => {
           </h2>
 
           <p className="text-gray-700 text-sm mb-6">
-            Please complete the payment to access your report.
+            Please complete the payment of ₹500 to access your report.
           </p>
 
           <button
@@ -46,7 +46,7 @@ const PaymentGate = () => {
           <div className="mt-8">
             <p className="text-gray-600 text-sm">Also want to buy medical kits?</p>
             <button
-              onClick={() => navigate('/medicine-dispensing')}
+              onClick={() => navigate('/medicine-dispensing', { state: { fromPaymentGate: true } })}
               className="mt-2 text-orange-500 font-semibold hover:underline"
             >
               Browse Medical Kits →

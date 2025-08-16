@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "../components/Logo";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import PrimaryButton from "../components/PrimaryButton";
@@ -82,7 +82,11 @@ const KitCard = ({ kit, onAddToCart }) => {
 // --- Main Medicine Dispensing Page ---
 export default function MedicineDispensing() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [cart, setCart] = useState([]);
+
+  // Check if we came from the payment gate
+  const { fromPaymentGate } = location.state || {};
 
   const handleAddToCart = (kitToAdd) => {
     setCart((prevCart) => {
@@ -105,8 +109,8 @@ export default function MedicineDispensing() {
   }, [cart]);
 
   const handleCheckout = () => {
-    // Navigate to the checkout page and pass the cart state
-    navigate('/checkout', { state: { cart, totalPrice } });
+    // Navigate to the checkout page and pass the cart state and the fromPaymentGate flag
+    navigate('/checkout', { state: { cart, totalPrice, fromPaymentGate } });
   };
 
   return (

@@ -8,10 +8,13 @@ export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Safely access cart data from location state
-  const { cart = [], totalPrice = 0 } = location.state || {};
+  // Safely access cart data and the new fromPaymentGate flag from location state
+  const { cart = [], totalPrice = 0, fromPaymentGate = false } = location.state || {};
 
-  if (cart.length === 0) {
+  const reportCost = fromPaymentGate ? 500 : 0;
+  const finalTotalPrice = totalPrice + reportCost;
+
+  if (cart.length === 0 && !fromPaymentGate) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center font-sans">
         <Logo size="text-4xl" />
@@ -36,6 +39,19 @@ export default function Checkout() {
 
         <main className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
           <div className="space-y-4">
+            {fromPaymentGate && (
+              <div className="flex justify-between items-center border-b pb-4">
+                <div>
+                  <p className="font-bold text-gray-800">Health Report</p>
+                  <p className="text-sm text-gray-500">
+                    Your comprehensive health summary.
+                  </p>
+                </div>
+                <p className="font-semibold text-gray-700">
+                  ₹{reportCost}
+                </p>
+              </div>
+            )}
             {cart.map((item) => (
               <div key={item.id} className="flex justify-between items-center border-b pb-4">
                 <div>
@@ -54,7 +70,7 @@ export default function Checkout() {
           <div className="mt-6 border-t-2 pt-4">
             <div className="flex justify-between items-center text-lg font-bold">
               <span className="text-gray-600">Total Amount</span>
-              <span className="text-orange-500">₹{totalPrice}</span>
+              <span className="text-orange-500">₹{finalTotalPrice}</span>
             </div>
           </div>
 
