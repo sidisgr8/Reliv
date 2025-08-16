@@ -63,9 +63,10 @@ const BodyTemperaturePage = () => {
   const navigate = useNavigate(); // ✅ Hook for navigation
   const { update } = useHealth();
 
+// Corrected code for src/pages/BodyTemperature.jsx
 const handleNext = () => {
   update({
-    bodyTemperature: temperature,
+    vitals: { tempF: temperature }, // ✅ Correctly nested and named
   });
   navigate("/eyesight");
 };
