@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef } from "react";
 import { useHealth } from "../context/HealthContext";
+import { useNavigate } from "react-router-dom"; // ✅ Import useNavigate
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -36,7 +37,6 @@ function assessTempF(t) {
   if (v < 100.4) return { label: "Elevated", advice: "Mild elevation; monitor." };
   return { label: "Fever", advice: "Possible fever; consider medical advice." };
 }
-// Helper to convert line number to Snellen equivalent for a more standard reading
 function getSnellenEquivalent(line) {
     const lines = { '1': 200, '2': 100, '3': 70, '4': 50, '5': 40, '6': 30, '7': 25, '8': 20, '9': 15 };
     return lines[line] || '—';
@@ -54,6 +54,7 @@ function assessEyes(left, right) {
 
 export default function Report() {
   const { data } = useHealth();
+  const navigate = useNavigate(); // ✅ Initialize useNavigate
   const { patient, vitals } = data;
   const [sending, setSending] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -69,7 +70,6 @@ export default function Report() {
 
   const generatePdf = async () => {
     const content = pdfRef.current;
-    // Temporarily add a class for better PDF rendering, then remove it.
     content.classList.add('pdf-render');
     const canvas = await html2canvas(content, {
       scale: 2, 
@@ -94,13 +94,11 @@ export default function Report() {
     try {
       const pdf = await generatePdf();
       const pdfBase64 = pdf.output('datauristring');
-
       const res = await fetch("http://localhost:5000/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: patient.email, name: patient.name, pdf: pdfBase64 }),
       });
-
       const result = await res.json();
       if (result.ok) {
         if (result.previewUrl) {
@@ -124,7 +122,6 @@ export default function Report() {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        {/* The content inside this div will be captured for the PDF */}
         <div ref={pdfRef} className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <header className="bg-orange-500 text-white p-8 relative overflow-hidden">
              <div 
@@ -151,7 +148,6 @@ export default function Report() {
                 <p className="col-span-2"><strong className="font-medium text-gray-500">Email:</strong> {patient.email || "N/A"}</p>
               </div>
             </section>
-
             <section>
               <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-6">Health Vitals</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -162,7 +158,6 @@ export default function Report() {
                 <VitalCard className="md:col-span-2" label="Visual Acuity" value={computed.eyes.summary} status="Screening Result" note={computed.eyes.note} />
               </div>
             </section>
-            
             <footer className="text-center text-xs text-gray-400 mt-12 pt-4 border-t">
               <p>This report is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.</p>
               <p>&copy; {new Date().getFullYear()} Reliv. All rights reserved.</p>
@@ -170,13 +165,16 @@ export default function Report() {
           </main>
         </div>
 
-        {/* --- Action Buttons (Outside the PDF capture area) --- */}
-        <div className="flex flex-col md:flex-row gap-4 justify-center mt-8">
+        <div className="flex flex-wrap gap-4 justify-center mt-8">
           <button onClick={handleSendEmail} disabled={sending || !patient.email} className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
             {sending ? "Sending..." : "Email Report"}
           </button>
           <button onClick={handleDownloadPdf} className="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
             Download PDF
+          </button>
+          {/* ✅ --- NEW HOME BUTTON ADDED BELOW --- ✅ */}
+          <button onClick={() => navigate('/')} className="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-300 transition-transform transform hover:scale-105">
+            Home
           </button>
           {previewUrl && (
             <a href={previewUrl} target="_blank" rel="noreferrer" className="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-300 transition-transform transform hover:scale-105 text-center">
@@ -190,7 +188,6 @@ export default function Report() {
 }
 
 // --- New Reusable VitalCard Component ---
-
 const VitalCard = ({ label, value, status, note, className = "" }) => {
   const getStatusColor = (statusLabel) => {
     const lowerCaseStatus = statusLabel.toLowerCase();

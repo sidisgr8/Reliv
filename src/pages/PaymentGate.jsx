@@ -41,6 +41,18 @@ const PaymentGate = () => {
           >
             Pay Now
           </button>
+
+          {/* ✅ --- NEW BUTTON ADDED BELOW --- ✅ */}
+          <div className="mt-8">
+            <p className="text-gray-600 text-sm">Also want to buy medical kits?</p>
+            <button
+              onClick={() => navigate('/medicine-dispensing')}
+              className="mt-2 text-orange-500 font-semibold hover:underline"
+            >
+              Browse Medical Kits →
+            </button>
+          </div>
+          
         </div>
       </div>
     </div>

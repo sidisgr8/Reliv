@@ -11,6 +11,7 @@ import PaymentGate from "./pages/PaymentGate.jsx"; // ✅ ensure file is Payment
 import OxygenPulse from "./pages/OxygenPulse.jsx";
 import BodyTemperature from "./pages/BodyTemperature.jsx"; // ✅ add .jsx for consistency
 import Report from "./pages/Report.jsx";
+import Checkout from "./pages/Checkout.jsx";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
       <Route path="/body-temperature" element={<BodyTemperature />} />
       <Route path="/eyesight" element={<EyeSight />} /> {/* ✅ lowercase */}
       <Route path="/report" element={<Report />} />
+      <Route path="/checkout" element={<Checkout />} />
     </Routes>
   );
 }
