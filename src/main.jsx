@@ -2,6 +2,7 @@
 import React, { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { HealthProvider } from "./context/HealthContext.jsx";
 import "./index.css";
 
 // 👇 THIS LINE BOOTS i18next (must be before <App/> renders)
@@ -14,7 +15,10 @@ createRoot(document.getElementById("root")).render(
     {/* Suspense lets react-i18next wait for resources without showing keys */}
     <Suspense fallback={null}>
       <BrowserRouter>
+        <HealthProvider>
+          {/* Wrap App in HealthProvider to provide context */} 
         <App />
+        </HealthProvider>
       </BrowserRouter>
     </Suspense>
   </StrictMode>

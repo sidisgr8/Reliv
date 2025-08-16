@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // <-- Import useNavigate
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import eyeChartImg from "../assets/eye-chart.png";
+import { useHealth } from "../context/HealthContext";
 
 /**
  * Splash screen before Eye Sight test
@@ -57,9 +59,19 @@ const EyeSightSplash = ({ onComplete }) => {
 /**
  * Eye Sight test page
  */
-const EyeSightTest = ({ onNext }) => {
+const EyeSightTest = () => {
   const [leftEyeLine, setLeftEyeLine] = useState("");
   const [rightEyeLine, setRightEyeLine] = useState("");
+  const navigate = useNavigate(); // <-- Add navigate hook
+  const { update } = useHealth();
+
+const handleSubmit = () => {
+  update({
+    vitals: { leftEye: leftEyeLine, rightEye: rightEyeLine },
+  });
+  navigate("/payment");
+};
+
 
   return (
     <div className="relative w-full min-h-screen bg-white font-sans overflow-hidden flex flex-col">
@@ -124,9 +136,9 @@ const EyeSightTest = ({ onNext }) => {
               aria-label="Right eye line"
             />
 
-            <PrimaryButton className="w-full" onClick={onNext}>
-              Submit →
-            </PrimaryButton>
+             <PrimaryButton className="w-full" onClick={handleSubmit}>
+      Submit →
+    </PrimaryButton>
           </div>
         </main>
 
@@ -157,7 +169,7 @@ export default function EyeSight() {
     case "splash":
       return <EyeSightSplash onComplete={showTest} />;
     case "test":
-      return <EyeSightTest onNext={() => console.log("Go to next step")} />;
+      return <EyeSightTest />;
     default:
       return <EyeSightSplash onComplete={showTest} />;
   }

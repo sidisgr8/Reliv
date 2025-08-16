@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
-import Logo from "../components/Logo"; // 1️⃣ Import Logo from components
-import PrimaryButton from "../components/PrimaryButton"; // <-- Add this import
-import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4"; // 2️⃣ Import video
+// pages/HealthCheckup.jsx
 
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
+import Logo from "../components/Logo";
+import PrimaryButton from "../components/PrimaryButton";
+import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
+import { useHealth } from "../context/HealthContext";
 // --- Reusable UI Components ---
 
 const WaveBackground = ({ className }) => {
@@ -69,9 +72,16 @@ const HealthCheckPage = ({ onComplete }) => {
 
 // BloodPressure Page
 const BloodPressure = ({ onProceed }) => {
-  // 3️⃣ Use state for diastolic and systolic
   const [diastolic, setDiastolic] = useState("");
   const [systolic, setSystolic] = useState("");
+  const { update } = useHealth();
+
+  const handleProceed = () => {
+    update({
+      vitals: { diastolic, systolic },
+    });
+    onProceed();
+  };
 
   return (
     <div className="relative w-full h-screen bg-white font-sans overflow-hidden">
@@ -81,9 +91,8 @@ const BloodPressure = ({ onProceed }) => {
         style={{ clipPath: "ellipse(120% 100% at 50% -40%)" }}
       ></div>
 
-      {/* Content laid out with Flexbox */}
       <div className="relative z-10 h-full flex flex-col p-5">
-        {/* Top Bar with Back Arrow */}
+        {/* Top Bar */}
         <header className="flex-shrink-0 flex items-center">
           <button
             onClick={() => window.history.back()}
@@ -93,14 +102,13 @@ const BloodPressure = ({ onProceed }) => {
           </button>
         </header>
 
-        {/* Main Content Area */}
+        {/* Content */}
         <main className="flex-grow flex flex-col items-center pt-2">
           <Logo />
           <h2 className="text-2xl font-bold text-gray-800 mt-4 mb-6">
             Blood Pressure
           </h2>
 
-          {/* Calculated Box */}
           <div className="bg-white rounded-xl p-5 w-full max-w-xs shadow-md">
             <h3 className="text-lg font-semibold text-center text-gray-700 mb-4">
               Calculated
@@ -130,9 +138,8 @@ const BloodPressure = ({ onProceed }) => {
           </div>
         </main>
 
-        {/* Bottom Section */}
+        {/* Bottom */}
         <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4">
-          {/* Video Illustration */}
           <div className="w-full max-w-xs h-48 mb-4">
             <video
               src={MeditatingGirlVideo}
@@ -153,12 +160,11 @@ const BloodPressure = ({ onProceed }) => {
             <span className="text-xs text-gray-500 ml-2">1/4 complete</span>
           </div>
 
-          {/* Proceed Button */}
           <PrimaryButton
             className="w-full max-w-xs mt-4 justify-center"
-            onClick={onProceed}
+            onClick={handleProceed}
           >
-            Proceed &rarr;
+            Proceed →
           </PrimaryButton>
         </footer>
       </div>
@@ -169,10 +175,11 @@ const BloodPressure = ({ onProceed }) => {
 // Main App component to control page navigation
 export default function App() {
   const [currentPage, setCurrentPage] = useState("splash");
+  const navigate = useNavigate(); // Add this line
 
   const showNextPage = () => setCurrentPage("blood");
   const goToOxygenPulse = () => {
-    window.location.href = "/oxygen-pulse";
+    navigate("/oxygen-pulse"); // Change this line
   };
 
   switch (currentPage) {

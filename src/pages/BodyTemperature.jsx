@@ -5,6 +5,7 @@ import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
 import ClockTimerVideo from "../assets/ClockTimer.mp4"; // <-- Import ClockTimer.mp4
+import { useHealth } from "../context/HealthContext";
 
 // ---------------- Splash Screen ----------------
 const Splash = ({ onComplete }) => {
@@ -60,6 +61,14 @@ const Splash = ({ onComplete }) => {
 const BodyTemperaturePage = () => {
   const [temperature, setTemperature] = useState("");
   const navigate = useNavigate(); // ✅ Hook for navigation
+  const { update } = useHealth();
+
+const handleNext = () => {
+  update({
+    bodyTemperature: temperature,
+  });
+  navigate("/eyesight");
+};
 
   return (
     <div className="relative w-full min-h-screen bg-white font-sans overflow-hidden flex flex-col">
@@ -142,11 +151,11 @@ const BodyTemperaturePage = () => {
 
           {/* Next button with navigation */}
           <PrimaryButton
-            className="w-full max-w-xs justify-center"
-            onClick={() => navigate("/eyesight")} // ✅ Navigate to EyeSight.jsx
-          >
-            Next →
-          </PrimaryButton>
+      className="w-full max-w-xs justify-center"
+      onClick={handleNext}
+    >
+      Next →
+    </PrimaryButton>
         </footer>
       </div>
     </div>

@@ -4,6 +4,8 @@ import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
 import BodyTemperature from "./BodyTemperature";
+import { useHealth } from "../context/HealthContext";
+
 
 /**
  * Splash screen before Oxygen & Pulse page
@@ -62,6 +64,15 @@ const Splash = ({ onComplete }) => {
 const OxygenPulsePage = ({ onProceed }) => {
   const [oxygen, setOxygen] = useState("");
   const [pulse, setPulse] = useState("");
+
+   const { update } = useHealth();
+
+  const handleProceed = () => {
+    update({
+      vitals: { spo2: oxygen, pulse },
+    });
+    onProceed();
+  };
 
   return (
     <div className="relative w-full min-h-screen bg-white font-sans overflow-hidden flex flex-col">
@@ -162,7 +173,7 @@ const OxygenPulsePage = ({ onProceed }) => {
 
             <PrimaryButton
               className="w-full justify-center"
-              onClick={onProceed}
+              onClick={handleProceed}
             >
               Proceed →
             </PrimaryButton>
