@@ -121,10 +121,19 @@ export default function MedicineDispensingWithAdmin() {
   const [cart, setCart] = useState(cartFromPrevPage || []);
 
   const handleAddToCart = (kitToAdd) => {
+    const existingCartItem = cart.find((item) => item.id === kitToAdd.id);
+    const currentQuantityInCart = existingCartItem ? existingCartItem.quantity : 0;
+  
+    if (currentQuantityInCart >= kitToAdd.quantity) {
+      alert(`You cannot add more than the available stock of ${kitToAdd.quantity}.`);
+      return;
+    }
+  
     setCart((prevCart) => {
-      const existingKit = prevCart.find((item) => item.id === kitToAdd.id);
-      if (existingKit) {
-        return prevCart.map((item) => (item.id === kitToAdd.id ? { ...item, quantity: item.quantity + 1 } : item));
+      if (existingCartItem) {
+        return prevCart.map((item) =>
+          item.id === kitToAdd.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
       }
       return [...prevCart, { ...kitToAdd, quantity: 1 }];
     });
@@ -284,6 +293,15 @@ export default function MedicineDispensingWithAdmin() {
     setMedicalKits((prev) => [newKit, ...prev]);
   };
 
+  const handleImageUpload = (id, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      handleUpdateKitField(id, "imageUrl", event.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-50 font-sans pb-28">
       <TopEllipseBackground color="#FFF1EA" height="40%" />
@@ -326,13 +344,14 @@ export default function MedicineDispensingWithAdmin() {
       {isAdminOpen && (
         <div className="fixed inset-0 flex items-start justify-center pt-20 px-4" style={{zIndex: 9999}}>
           <div className="absolute inset-0 bg-black/40" onClick={handleAdminToggle} style={{zIndex: 9998}}></div>
-          <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-6" style={{zIndex: 9999}}>
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6" style={{zIndex: 9999}}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Admin Panel</h2>
               <button onClick={handleAdminToggle} className="text-gray-600">Close</button>
             </div>
-{!isAuthenticated ? (
-  <div>
+            {!isAuthenticated ? (
+              // Login and password reset forms...
+              <div>
     {!showForgot ? (
       // --- Normal login form ---
       <form onSubmit={handleAdminLogin} className="space-y-4">
@@ -433,120 +452,126 @@ export default function MedicineDispensingWithAdmin() {
       </div>
     )}
   </div>
-) : (
-  // --- Authenticated admin panel ---
-  <div>
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-3">
-        <h3 className="text-lg font-semibold">Inventory</h3>
-        <button
-          onClick={handleAddNewKit}
-          className="text-sm px-3 py-1 rounded-full border"
-        >
-          + New kit
-        </button>
-      </div>
-      <div>
-        <PrimaryButton
-          onClick={() => {
-            setIsAuthenticated(false);
-            alert("Logged out");
-          }}
-        >
-          Log out
-        </PrimaryButton>
-      </div>
-    </div>
+            ) : (
+              // --- Authenticated admin panel ---
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-semibold">Inventory</h3>
+                    <button
+                      onClick={handleAddNewKit}
+                      className="text-sm px-3 py-1 rounded-full border"
+                    >
+                      + New kit
+                    </button>
+                  </div>
+                  <div>
+                    <PrimaryButton
+                      onClick={() => {
+                        setIsAuthenticated(false);
+                        alert("Logged out");
+                      }}
+                    >
+                      Log out
+                    </PrimaryButton>
+                  </div>
+                </div>
 
-    <div className="mb-4 flex items-center gap-3">
-      <label className="text-sm text-gray-600">Admin email</label>
-      <input
-        value={adminEmail}
-        onChange={(e) => setAdminEmail(e.target.value)}
-        className="rounded-md border px-2 py-1"
-        placeholder="admin@example.com"
-      />
-      <button
-        onClick={handleSaveAdminEmail}
-        className="text-sm px-3 py-1 rounded-md border"
-      >
-        Save email
-      </button>
-    </div>
+                <div className="mb-4 flex items-center gap-3">
+                  <label className="text-sm text-gray-600">Admin email</label>
+                  <input
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    className="rounded-md border px-2 py-1"
+                    placeholder="admin@example.com"
+                  />
+                  <button
+                    onClick={handleSaveAdminEmail}
+                    className="text-sm px-3 py-1 rounded-md border"
+                  >
+                    Save email
+                  </button>
+                </div>
 
-    <div className="space-y-4 max-h-96 overflow-auto pr-2">
-      {medicalKits.map((kit) => (
-        <div
-          key={kit.id}
-          className="border rounded-xl p-3 flex gap-4 items-start"
-        >
-          <img
-            src={kit.imageUrl}
-            alt=""
-            className="w-20 h-20 object-cover rounded-md"
-          />
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
-            <div className="md:col-span-1">
-              <label className="text-xs text-gray-600">Name</label>
-              <input
-                value={kit.name}
-                onChange={(e) =>
-                  handleUpdateKitField(kit.id, "name", e.target.value)
-                }
-                className="w-full rounded-md border px-2 py-1"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Description</label>
-              <input
-                value={kit.description}
-                onChange={(e) =>
-                  handleUpdateKitField(kit.id, "description", e.target.value)
-                }
-                className="w-full rounded-md border px-2 py-1"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Price (₹)</label>
-              <input
-                type="number"
-                value={kit.price}
-                onChange={(e) =>
-                  handleUpdateKitField(kit.id, "price", Number(e.target.value))
-                }
-                className="w-full rounded-md border px-2 py-1"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Quantity</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={kit.quantity}
-                  onChange={(e) =>
-                    handleUpdateKitField(kit.id, "quantity", Number(e.target.value))
-                  }
-                  className="w-full rounded-md border px-2 py-1"
-                />
-                <button
-                  onClick={() => handleDeleteKit(kit.id)}
-                  className="text-sm px-3 py-1 rounded-md border text-red-600"
-                >
-                  Delete
-                </button>
+                <div className="space-y-4 max-h-96 overflow-auto pr-2">
+                  {medicalKits.map((kit) => (
+                    <div
+                      key={kit.id}
+                      className="border rounded-xl p-3 flex gap-4 items-start"
+                    >
+                      <img
+                        src={kit.imageUrl}
+                        alt=""
+                        className="w-20 h-20 object-cover rounded-md"
+                      />
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                        <div className="md:col-span-1">
+                          <label className="text-xs text-gray-600">Name</label>
+                          <input
+                            value={kit.name}
+                            onChange={(e) =>
+                              handleUpdateKitField(kit.id, "name", e.target.value)
+                            }
+                            className="w-full rounded-md border px-2 py-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">Description</label>
+                          <input
+                            value={kit.description}
+                            onChange={(e) =>
+                              handleUpdateKitField(kit.id, "description", e.target.value)
+                            }
+                            className="w-full rounded-md border px-2 py-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">Price (₹)</label>
+                          <input
+                            type="number"
+                            value={kit.price}
+                            onChange={(e) =>
+                              handleUpdateKitField(kit.id, "price", Number(e.target.value))
+                            }
+                            className="w-full rounded-md border px-2 py-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">Quantity</label>
+                          <input
+                            type="number"
+                            value={kit.quantity}
+                            onChange={(e) =>
+                              handleUpdateKitField(kit.id, "quantity", Number(e.target.value))
+                            }
+                            className="w-full rounded-md border px-2 py-1"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs text-gray-600">Image</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(kit.id, e.target.files[0])}
+                            className="text-xs"
+                          />
+                          <button
+                            onClick={() => handleDeleteKit(kit.id)}
+                            className="text-sm px-3 py-1 rounded-md border text-red-600"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs text-gray-500 mt-3">
+                  Changes are saved locally and reflected in real-time on the main page.
+                </p>
               </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <p className="text-xs text-gray-500 mt-3">
-      Changes are saved locally and reflected in real-time on the main page.
-    </p>
-  </div>
-)}
-
+            )}
           </div>
         </div>
       )}
