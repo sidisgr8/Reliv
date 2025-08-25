@@ -20,9 +20,102 @@ const DATA_DIR = process.env.DATA_DIR || "./data";
 const TOKEN_STORE_FILE = path.join(DATA_DIR, "reset_tokens.json");
 const CRED_STORE_FILE = path.join(DATA_DIR, "admin_credentials.json");
 
+// --- Helper Functions ---
+
+function assessBP(sys, dia) {
+  const s = Number(sys),
+    d = Number(dia);
+  if (!s || !d) return { label: "—", advice: "No BP values provided." };
+  if (s < 120 && d < 80)
+    return { label: "Normal", advice: "Great! Keep up a healthy lifestyle." };
+  if (s < 130 && d < 80)
+    return {
+      label: "Elevated",
+      advice: "Monitor regularly; consider diet/exercise.",
+    };
+  if ((s >= 130 && s <= 139) || (d >= 80 && d <= 89))
+    return {
+      label: "Stage 1 Hypertension",
+      advice: "Consult a clinician; lifestyle changes recommended.",
+    };
+  if (s >= 140 || d >= 90)
+    return {
+      label: "Stage 2 Hypertension",
+      advice: "Seek medical advice soon.",
+    };
+  return { label: "—", advice: "Check values." };
+}
+function assessSpO2(spo2) {
+  const v = Number(spo2);
+  if (!v) return { label: "—", advice: "No SpO₂ value provided." };
+  if (v >= 95)
+    return {
+      label: "Normal",
+      advice: "Oxygen saturation is within normal range.",
+    };
+  if (v >= 90)
+    return {
+      label: "Borderline",
+      advice: "Monitor; if symptoms occur, contact a clinician.",
+    };
+  return { label: "Low", advice: "Low oxygen level; seek care if persistent." };
+}
+function assessPulse(pulse) {
+  const v = Number(pulse);
+  if (!v) return { label: "—", advice: "No pulse value provided." };
+  if (v >= 60 && v <= 100)
+    return {
+      label: "Normal",
+      advice: "Resting heart rate is within normal range.",
+    };
+  if (v < 60)
+    return {
+      label: "Low",
+      advice: "Could be normal for athletes; else, monitor.",
+    };
+  return {
+    label: "High",
+    advice: "Tachycardia; consider rest and consult if persistent.",
+  };
+}
+function assessTempF(t) {
+  const v = Number(t);
+  if (!v) return { label: "—", advice: "No temperature provided." };
+  if (v < 97)
+    return { label: "Low", advice: "Slightly low; ensure warmth and re-check." };
+  if (v <= 99) return { label: "Normal", advice: "Within normal range." };
+  if (v < 100.4)
+    return { label: "Elevated", advice: "Mild elevation; monitor." };
+  return { label: "Fever", advice: "Possible fever; consider medical advice." };
+}
+function getSnellenEquivalent(line) {
+  const lines = {
+    1: 200,
+    2: 100,
+    3: 70,
+    4: 50,
+    5: 40,
+    6: 30,
+    7: 25,
+    8: 20,
+    9: 15,
+  };
+  return lines[line] || "—";
+}
+function assessEyes(left, right) {
+  if (!left && !right)
+    return { summary: "—", note: "No eyesight input provided." };
+  return {
+    summary: `Left: 20/${getSnellenEquivalent(
+      left
+    )}, Right: 20/${getSnellenEquivalent(right)}`,
+    note: "This is a basic screening. Smaller line numbers indicate better acuity.",
+  };
+}
+
 // --- PDF Generation Logic ---
 function generateReportPdf(data) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const doc = new PDFDocument({ size: "A4", margin: 50 });
     const buffers = [];
 
@@ -34,89 +127,158 @@ function generateReportPdf(data) {
 
     // --- PDF Content ---
     const { patient, vitals } = data;
-
-    // Header
-    doc.fontSize(24).fillColor("#E85C25").text("Reliv", { align: "center" });
-    doc
-      .fontSize(18)
-      .fillColor("#000000")
-      .text("Health Screening Report", { align: "center" });
-    doc.moveDown(2);
-
-    // Patient Information
-    doc.fontSize(16).text("Patient Information", { underline: true });
-    doc.moveDown();
-    doc
-      .fontSize(12)
-      .text(`Name: ${patient.name || "N/A"}`)
-      .text(`Age: ${patient.age || "N/A"}`)
-      .text(`Gender: ${patient.gender || "N/A"}`)
-      .text(`Email: ${patient.email || "N/A"}`)
-      .text(`Phone: ${patient.phone || "N/A"}`);
-    doc.moveDown(2);
-
-    // Vitals
-    doc.fontSize(16).text("Health Vitals", { underline: true });
-    doc.moveDown();
-    const vitalsTable = {
-      headers: ["Vital", "Value", "Status"],
-      rows: [
-        [
-          "Blood Pressure",
-          `${vitals.systolic || "—"}/${vitals.diastolic || "—"} mmHg`,
-          "Normal",
-        ],
-        ["Oxygen Saturation", `${vitals.spo2 || "—"}%`, "Normal"],
-        ["Pulse Rate", `${vitals.pulse || "—"} BPM`, "Normal"],
-        ["Temperature", `${vitals.tempF || "—"} °F`, "Normal"],
-        [
-          "Visual Acuity",
-          `Left: 20/${getSnellenEquivalent(
-            vitals.leftEye
-          )}, Right: 20/${getSnellenEquivalent(vitals.rightEye)}`,
-          "Screening",
-        ],
-      ],
+    const computed = {
+      bp: assessBP(vitals.systolic, vitals.diastolic),
+      spo2: assessSpO2(vitals.spo2),
+      pulse: assessPulse(vitals.pulse),
+      temp: assessTempF(vitals.tempF),
+      eyes: assessEyes(vitals.leftEye, vitals.rightEye),
     };
 
-    const tableTop = doc.y;
-    const itemX = 50;
-    const valueX = 250;
-    const statusX = 450;
+    // Header
+    doc.rect(0, 0, 595.28, 150).fill("#F97316");
+
+    doc.fontSize(32).font("Helvetica-Bold");
+    const relWidth = doc.widthOfString("Rel");
+    const ivWidth = doc.widthOfString("iv");
+    const totalLogoWidth = relWidth + ivWidth;
+    const logoStartX = (doc.page.width - totalLogoWidth) / 2;
 
     doc
-      .fontSize(10)
-      .text(vitalsTable.headers[0], itemX, tableTop)
-      .text(vitalsTable.headers[1], valueX, tableTop)
-      .text(vitalsTable.headers[2], statusX, tableTop);
+      .fillColor("#FFFFFF")
+      .text("Rel", logoStartX, 50, { continued: true })
+      .fillColor("#000000")
+      .text("iv");
 
-    let y = tableTop + 25;
-    vitalsTable.rows.forEach((row) => {
+    doc
+      .fontSize(18)
+      .fillColor("#FFFFFF")
+      .font("Helvetica")
+      .text("Health Screening Report", 0, 90, { align: "center" });
+
+    // Patient Information
+    doc.fillColor("#000000").fontSize(16).text("Patient Information", 50, 170);
+    doc.moveTo(50, 195).lineTo(545.28, 195).stroke("#FDBA74");
+
+    const col1X = 50;
+    const col2X = 300;
+    let currentY = 210;
+
+    doc.fontSize(12);
+    doc.font("Helvetica-Bold").text("Name:", col1X, currentY);
+    doc.font("Helvetica").text(patient.name || "N/A", col1X + 50, currentY);
+
+    doc.font("Helvetica-Bold").text("Age:", col2X, currentY);
+    doc.font("Helvetica").text(patient.age || "N/A", col2X + 35, currentY);
+    currentY += 20;
+
+    doc.font("Helvetica-Bold").text("Gender:", col1X, currentY);
+    doc.font("Helvetica").text(patient.gender || "N/A", col1X + 50, currentY);
+
+    doc.font("Helvetica-Bold").text("Phone:", col2X, currentY);
+    doc.font("Helvetica").text(patient.phone || "N/A", col2X + 45, currentY);
+    currentY += 20;
+    
+    doc.font("Helvetica-Bold").text("Email:", col1X, currentY);
+    doc.font("Helvetica").text(patient.email || "N/A", col1X + 40, currentY);
+
+    // Vitals Section
+    doc.fontSize(16).text("Health Vitals", 50, 300);
+    doc.moveTo(50, 325).lineTo(545.28, 325).stroke("#FDBA74");
+
+    // Vitals Cards
+    const vitalsCards = [
+      {
+        label: "Blood Pressure",
+        value: `${vitals.systolic || "—"}/${vitals.diastolic || "—"} mmHg`,
+        status: computed.bp.label,
+        note: computed.bp.advice,
+      },
+      {
+        label: "Oxygen Saturation (SpO₂)",
+        value: `${vitals.spo2 || "—"} %`,
+        status: computed.spo2.label,
+        note: computed.spo2.advice,
+      },
+      {
+        label: "Pulse Rate",
+        value: `${vitals.pulse || "—"} BPM`,
+        status: computed.pulse.label,
+        note: computed.pulse.advice,
+      },
+      {
+        label: "Body Temperature",
+        value: `${vitals.tempF || "—"} °F`,
+        status: computed.temp.label,
+        note: computed.temp.advice,
+      },
+    ];
+
+    let yPos = 340;
+    const cardWidth = 240;
+    const cardMargin = 15;
+    const startXCol1 = 50;
+    const startXCol2 = startXCol1 + cardWidth + cardMargin;
+
+    vitalsCards.forEach((vital, index) => {
+      const xPos = (index % 2 === 0) ? startXCol1 : startXCol2;
+      
       doc
-        .fontSize(12)
-        .text(row[0], itemX, y)
-        .text(row[1], valueX, y)
-        .text(row[2], statusX, y);
-      y += 25;
+        .roundedRect(xPos, yPos, cardWidth, 100, 10)
+        .fillAndStroke("#FFFFFF", "#E5E7EB");
+      
+      const textX = xPos + 10;
+      let textY = yPos + 10;
+      
+      doc.fontSize(10).fillColor("#6B7280").font("Helvetica").text(vital.label, textX, textY);
+      textY += 15;
+      
+      doc.fontSize(24).fillColor("#111827").font("Helvetica-Bold").text(vital.value, textX, textY);
+      textY += 35;
+
+      doc.fontSize(10).fillColor("#000000").font("Helvetica").text(vital.note, textX, textY, { width: cardWidth - 20 });
+      
+      if (index % 2 !== 0) {
+        yPos += 120;
+      }
+    });
+    
+    // Visual Acuity
+    yPos += (vitalsCards.length % 2 === 0 ? 0 : 120);
+    doc
+      .roundedRect(50, yPos, 495, 80, 10)
+      .fillAndStroke("#FFFFFF", "#E5E7EB");
+    doc
+      .fontSize(10)
+      .fillColor("#6B7280")
+      .text("Visual Acuity", 60, yPos + 10);
+    doc
+      .fontSize(24)
+      .fillColor("#111827")
+      .font("Helvetica-Bold")
+      .text(computed.eyes.summary, 60, yPos + 25);
+    doc
+      .fontSize(10)
+      .fillColor("#000000")
+      .font("Helvetica")
+      .text(computed.eyes.note, 60, yPos + 55, { width: 475 });
+
+    // Footer
+    doc
+      .fontSize(8)
+      .fillColor("#9CA3AF")
+      .text(
+        "This report is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.",
+        50,
+        750,
+        { align: "center" }
+      );
+    doc.text(`© ${new Date().getFullYear()} Reliv. All rights reserved.`, {
+      align: "center",
     });
 
     doc.end();
   });
-}
-
-function getSnellenEquivalent(line) {
-  const lines = {
-    "1": 200,
-    "2": 100,
-    "3": 70,
-    "4": 50,
-    "5": 40,
-    "6": 30,
-    "7": 25,
-    "8": 20,
-    "9": 15,
-  };
-  return lines[line] || "—";
 }
 
 // Ensure data directory
@@ -220,7 +382,6 @@ app.post("/api/send-reset-email", async (req, res) => {
 
     // Prepare email
     const subject = "Admin password reset — your recovery code";
-    // ✅ Link has been removed from the email text
     const text = `You (or someone claiming to be you) requested a password reset.\n\nRecovery code: ${token}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`;
 
     const mailOptions = {
@@ -262,15 +423,20 @@ app.post("/api/confirm-reset", async (req, res) => {
       await saveJsonSafe(TOKEN_STORE_FILE, store);
       return res
         .status(400)
-        .json({ ok: false, message: "Recovery code expired. Request a new one." });
+        .json({
+          ok: false,
+          message: "Recovery code expired. Request a new one.",
+        });
     }
 
     const inputHash = crypto.createHash("sha256").update(token).digest("hex");
     if (inputHash !== entry.tokenHash) {
-      return res.status(400).json({ ok: false, message: "Invalid recovery code." });
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid recovery code." });
     }
 
-    // token valid — store the password hash (use PBKDF2 for demo; use Argon2/bcrypt in production)
+    // token valid — store the password hash
     const salt = crypto.randomBytes(16).toString("hex");
     const iterations = 100_000;
     const keyLen = 64;
@@ -305,7 +471,7 @@ app.post("/api/confirm-reset", async (req, res) => {
   }
 });
 
-// Optional: helper to check credentials (for future server-side login)
+// Optional: helper to check credentials
 app.post("/api/check-login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -313,14 +479,21 @@ app.post("/api/check-login", async (req, res) => {
       return res.status(400).json({ ok: false, message: "Missing parameters." });
     const credStore = await loadJsonSafe(CRED_STORE_FILE);
     const user = credStore[email];
-    if (!user) return res.status(400).json({ ok: false, message: "No such admin." });
+    if (!user)
+      return res.status(400).json({ ok: false, message: "No such admin." });
     if (user.algorithm !== "pbkdf2")
       return res
         .status(500)
         .json({ ok: false, message: "Unsupported algorithm." });
 
     const derived = crypto
-      .pbkdf2Sync(password, user.salt, user.iterations, user.keyLen, user.digest)
+      .pbkdf2Sync(
+        password,
+        user.salt,
+        user.iterations,
+        user.keyLen,
+        user.digest
+      )
       .toString("hex");
     if (derived === user.hash) return res.json({ ok: true });
     return res.status(401).json({ ok: false, message: "Invalid credentials." });
