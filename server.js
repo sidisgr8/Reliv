@@ -94,8 +94,6 @@ app.post("/create-order", (req, res) => {
 });
 
 // --- Send reset email ---
-// Expects { to } (email). Responds { ok: true } or { ok: false, message }.
-// Generates a secure token, stores SHA-256(token) + expiry server-side.
 app.post("/api/send-reset-email", async (req, res) => {
   try {
     const { to } = req.body;
@@ -112,10 +110,9 @@ app.post("/api/send-reset-email", async (req, res) => {
     await saveJsonSafe(TOKEN_STORE_FILE, store);
 
     // Prepare email
-    const frontendBase = process.env.FRONTEND_BASE_URL || "";
-    const resetLink = frontendBase ? `${frontendBase.replace(/\/$/, "")}/admin-reset?email=${encodeURIComponent(to)}&token=${token}` : "";
     const subject = "Admin password reset — your recovery code";
-    const text = `You (or someone claiming to be you) requested a password reset.\n\nRecovery code: ${token}\n\nThis code expires in 15 minutes.\n${resetLink ? `Or click the link: ${resetLink}\n\n` : ""}If you didn't request this, ignore this email.`;
+    // ✅ Link has been removed from the email text
+    const text = `You (or someone claiming to be you) requested a password reset.\n\nRecovery code: ${token}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`;
 
     const mailOptions = {
       from: `Reliv Reports <${process.env.GMAIL_USER}>`,
@@ -135,8 +132,6 @@ app.post("/api/send-reset-email", async (req, res) => {
 });
 
 // --- Confirm reset and set new password ---
-// Expects { email, token, newPassword }
-// Verifies token (by hashing provided token) and expiry, then stores a salted hash of newPassword server-side.
 app.post("/api/confirm-reset", async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
@@ -190,7 +185,6 @@ app.post("/api/confirm-reset", async (req, res) => {
 });
 
 // Optional: helper to check credentials (for future server-side login)
-// Accepts { email, password } and returns { ok: true } if matches credential store
 app.post("/api/check-login", async (req, res) => {
   try {
     const { email, password } = req.body;

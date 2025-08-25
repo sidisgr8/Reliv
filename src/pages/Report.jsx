@@ -55,12 +55,42 @@ function assessEyes(left, right) {
 export default function Report() {
   const { data } = useHealth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { patient, vitals } = data;
   const [sending, setSending] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const pdfRef = useRef();
+  const stockUpdated = useRef(false);
 
-  // 🚨 Stock reduction logic has been moved to OrderSuccess.jsx 🚨
+  // Stock reduction logic for any kits purchased with the report
+  useEffect(() => {
+    if (stockUpdated.current) {
+      return;
+    }
+
+    const { cart } = location.state || {};
+    if (cart && cart.length > 0) {
+      console.log("Processing stock reduction for cart on Report page:", cart);
+      try {
+        const storedKitsRaw = localStorage.getItem("medicalKits_v1");
+        if (storedKitsRaw) {
+          const storedKits = JSON.parse(storedKitsRaw);
+          const updatedKits = storedKits.map(kit => {
+            const cartItem = cart.find(item => item.id === kit.id);
+            if (cartItem) {
+              return { ...kit, quantity: kit.quantity - cartItem.quantity };
+            }
+            return kit;
+          });
+          localStorage.setItem("medicalKits_v1", JSON.stringify(updatedKits));
+          console.log("✅ Stock updated successfully from Report page.");
+          stockUpdated.current = true;
+        }
+      } catch (error) {
+        console.error("Failed to update stock from Report page:", error);
+      }
+    }
+  }, [location.state]);
 
   const computed = useMemo(() => ({
     bp: assessBP(vitals.systolic, vitals.diastolic),
@@ -144,7 +174,6 @@ export default function Report() {
     }
   };
 
-  // ... rest of the component (JSX is unchanged)
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-3xl mx-auto">
@@ -217,27 +246,28 @@ export default function Report() {
   );
 }
 
-// --- New Reusable VitalCard Component (unchanged) ---
+// --- New Reusable VitalCard Component ---
 const VitalCard = ({ label, value, status, note, className = "" }) => {
-    const getStatusColor = (statusLabel) => {
-        const lowerCaseStatus = statusLabel.toLowerCase();
-        if (['normal'].includes(lowerCaseStatus)) return 'bg-green-100 text-green-800';
-        if (['elevated', 'borderline'].includes(lowerCaseStatus)) return 'bg-yellow-100 text-yellow-800';
-        if (['stage 1 hypertension', 'stage 2 hypertension', 'high', 'fever', 'low'].includes(lowerCaseStatus)) return 'bg-red-100 text-red-800';
-        return 'bg-gray-100 text-gray-800';
-    };
-    return (
-        <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 transition-all duration-300 hover:shadow-md hover:border-orange-200 ${className}`}>
-        <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
-        <p className="text-3xl font-bold text-gray-800">{value}</p>
-        {status !== 'Screening Result' && (
-            <div className="mt-3 flex items-center">
-            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
-                {status}
-            </span>
-            </div>
-        )}
-        <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">{note}</p>
+  const getStatusColor = (statusLabel) => {
+    const lowerCaseStatus = statusLabel.toLowerCase();
+    if (['normal'].includes(lowerCaseStatus)) return 'bg-green-100 text-green-800';
+    if (['elevated', 'borderline'].includes(lowerCaseStatus)) return 'bg-yellow-100 text-yellow-800';
+    if (['stage 1 hypertension', 'stage 2 hypertension', 'high', 'fever', 'low'].includes(lowerCaseStatus)) return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 transition-all duration-300 hover:shadow-md hover:border-orange-200 ${className}`}>
+      <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
+      <p className="text-3xl font-bold text-gray-800">{value}</p>
+      {status !== 'Screening Result' && (
+        <div className="mt-3 flex items-center">
+          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
+            {status}
+          </span>
         </div>
-    );
+      )}
+      <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">{note}</p>
+    </div>
+  );
 };

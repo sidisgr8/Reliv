@@ -74,8 +74,9 @@ export default function Checkout() {
           </div>
 
           <div className="mt-8 text-center">
+            {/* This now passes the correct state for the payment gate to make a decision */}
             <PrimaryButton 
-              onClick={() => navigate('/payment', { state: { cart, totalPrice: finalTotalPrice, fromPaymentGate, isMedicineFlow: true }})} 
+              onClick={() => navigate('/payment', { state: { cart, totalPrice: finalTotalPrice, fromPaymentGate }})} 
               className="w-full max-w-sm justify-center"
             >
               Proceed to Payment

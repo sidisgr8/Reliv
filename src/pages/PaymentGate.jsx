@@ -7,22 +7,29 @@ import TopEllipseBackground from "../components/TopEllipseBackground";
 const PaymentGate = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cart = [], isMedicineFlow = false, totalPrice = 0 } = location.state || {};
+  const { cart = [], totalPrice = 0, fromPaymentGate = false } = location.state || {};
 
-  // Determine payment amount and text based on flow
-  const paymentAmount = isMedicineFlow ? totalPrice : 500;
-  const paymentMessage = isMedicineFlow
-    ? `Please complete the payment of ₹${paymentAmount} for your medical kits.`
-    : "Please complete the payment of ₹500 to access your report.";
+  // Determine the flow:
+  // - If fromPaymentGate is true, a health checkup was done, so a report is needed.
+  // - If fromPaymentGate is false and cart is empty, it's a health-checkup-only flow.
+  // - Otherwise, it's a medicine-only flow.
+  const needsReport = fromPaymentGate || cart.length === 0;
+
+  const paymentAmount = needsReport ? (totalPrice || 500) : totalPrice;
+  const paymentMessage = needsReport
+    ? `Please complete the payment of ₹${paymentAmount} to access your report and purchase kits.`
+    : `Please complete the payment of ₹${paymentAmount} for your medical kits.`;
+  
+  const title = needsReport ? "Your Report is Ready!" : "Complete Your Purchase";
 
   const startPayment = () => {
     console.log("🛠️ Simulating payment...");
     setTimeout(() => {
       console.log("✅ Mock Payment Success");
-      if (isMedicineFlow) {
-        navigate("/order-success", { state: { cart } });
-      } else {
+      if (needsReport) {
         navigate("/report", { state: { cart } });
+      } else {
+        navigate("/order-success", { state: { cart } });
       }
     }, 1000);
   };
@@ -38,7 +45,7 @@ const PaymentGate = () => {
 
         <div className="text-center max-w-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            {isMedicineFlow ? "Complete Your Purchase" : "Your report is Ready!"}
+            {title}
           </h2>
 
           <p className="text-gray-700 text-sm mb-6">
@@ -53,7 +60,7 @@ const PaymentGate = () => {
           </button>
           
           {/* This button only makes sense in the health checkup flow */}
-          {!isMedicineFlow && (
+          {!fromPaymentGate && cart.length === 0 && (
             <div className="mt-8">
               <p className="text-gray-600 text-sm">Also want to buy medical kits?</p>
               <button
