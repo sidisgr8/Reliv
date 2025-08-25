@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import PDFDocument from "pdfkit";
 
 dotenv.config();
 
@@ -18,6 +19,105 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const DATA_DIR = process.env.DATA_DIR || "./data";
 const TOKEN_STORE_FILE = path.join(DATA_DIR, "reset_tokens.json");
 const CRED_STORE_FILE = path.join(DATA_DIR, "admin_credentials.json");
+
+// --- PDF Generation Logic ---
+function generateReportPdf(data) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+    const buffers = [];
+
+    doc.on("data", buffers.push.bind(buffers));
+    doc.on("end", () => {
+      const pdfData = Buffer.concat(buffers);
+      resolve(pdfData);
+    });
+
+    // --- PDF Content ---
+    const { patient, vitals } = data;
+
+    // Header
+    doc.fontSize(24).fillColor("#E85C25").text("Reliv", { align: "center" });
+    doc
+      .fontSize(18)
+      .fillColor("#000000")
+      .text("Health Screening Report", { align: "center" });
+    doc.moveDown(2);
+
+    // Patient Information
+    doc.fontSize(16).text("Patient Information", { underline: true });
+    doc.moveDown();
+    doc
+      .fontSize(12)
+      .text(`Name: ${patient.name || "N/A"}`)
+      .text(`Age: ${patient.age || "N/A"}`)
+      .text(`Gender: ${patient.gender || "N/A"}`)
+      .text(`Email: ${patient.email || "N/A"}`)
+      .text(`Phone: ${patient.phone || "N/A"}`);
+    doc.moveDown(2);
+
+    // Vitals
+    doc.fontSize(16).text("Health Vitals", { underline: true });
+    doc.moveDown();
+    const vitalsTable = {
+      headers: ["Vital", "Value", "Status"],
+      rows: [
+        [
+          "Blood Pressure",
+          `${vitals.systolic || "—"}/${vitals.diastolic || "—"} mmHg`,
+          "Normal",
+        ],
+        ["Oxygen Saturation", `${vitals.spo2 || "—"}%`, "Normal"],
+        ["Pulse Rate", `${vitals.pulse || "—"} BPM`, "Normal"],
+        ["Temperature", `${vitals.tempF || "—"} °F`, "Normal"],
+        [
+          "Visual Acuity",
+          `Left: 20/${getSnellenEquivalent(
+            vitals.leftEye
+          )}, Right: 20/${getSnellenEquivalent(vitals.rightEye)}`,
+          "Screening",
+        ],
+      ],
+    };
+
+    const tableTop = doc.y;
+    const itemX = 50;
+    const valueX = 250;
+    const statusX = 450;
+
+    doc
+      .fontSize(10)
+      .text(vitalsTable.headers[0], itemX, tableTop)
+      .text(vitalsTable.headers[1], valueX, tableTop)
+      .text(vitalsTable.headers[2], statusX, tableTop);
+
+    let y = tableTop + 25;
+    vitalsTable.rows.forEach((row) => {
+      doc
+        .fontSize(12)
+        .text(row[0], itemX, y)
+        .text(row[1], valueX, y)
+        .text(row[2], statusX, y);
+      y += 25;
+    });
+
+    doc.end();
+  });
+}
+
+function getSnellenEquivalent(line) {
+  const lines = {
+    "1": 200,
+    "2": 100,
+    "3": 70,
+    "4": 50,
+    "5": 40,
+    "6": 30,
+    "7": 25,
+    "8": 20,
+    "9": 15,
+  };
+  return lines[line] || "—";
+}
 
 // Ensure data directory
 async function ensureDataDir() {
@@ -57,36 +157,42 @@ const transporter = nodemailer.createTransport({
 
 // --- Send report email ---
 app.post("/send-report", async (req, res) => {
-    try {
-        const { to, name, pdf } = req.body;
-        if (!to || !pdf) {
-            return res.status(400).json({ ok: false, message: "Missing email or PDF data." });
-        }
-
-        const mailOptions = {
-            from: `Reliv Reports <${process.env.GMAIL_USER}>`,
-            to: to,
-            subject: `Your Health Report from Reliv, ${name || 'User'}`,
-            text: `Hi ${name || 'User'},\n\nPlease find your health report attached.\n\nBest,\nThe Reliv Team`,
-            attachments: [{
-                filename: `Reliv-Health-Report-${name || 'user'}.pdf`,
-                content: pdf.split('base64,')[1],
-                encoding: 'base64',
-                contentType: 'application/pdf'
-            }]
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        const previewUrl = nodemailer.getTestMessageUrl(info);
-
-        console.log(`Sent report to ${to}. Preview URL: ${previewUrl}`);
-        res.json({ ok: true, previewUrl });
-    } catch (err) {
-        console.error("Error in /send-report:", err);
-        res.status(500).json({ ok: false, message: "Failed to send report." });
+  try {
+    const { to, name, healthData } = req.body;
+    if (!to || !healthData) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Missing email or health data." });
     }
-});
 
+    const pdfBuffer = await generateReportPdf(healthData);
+
+    const mailOptions = {
+      from: `Reliv Reports <${process.env.GMAIL_USER}>`,
+      to: to,
+      subject: `Your Health Report from Reliv, ${name || "User"}`,
+      text: `Hi ${
+        name || "User"
+      },\n\nPlease find your health report attached.\n\nBest,\nThe Reliv Team`,
+      attachments: [
+        {
+          filename: `Reliv-Health-Report-${name || "user"}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+
+    console.log(`Sent report to ${to}. Preview URL: ${previewUrl}`);
+    res.json({ ok: true, previewUrl });
+  } catch (err) {
+    console.error("Error in /send-report:", err);
+    res.status(500).json({ ok: false, message: "Failed to send report." });
+  }
+});
 
 // --- Mock payment route (unchanged) ---
 app.post("/create-order", (req, res) => {
@@ -97,7 +203,10 @@ app.post("/create-order", (req, res) => {
 app.post("/api/send-reset-email", async (req, res) => {
   try {
     const { to } = req.body;
-    if (!to) return res.status(400).json({ ok: false, message: "Missing 'to' (admin email)." });
+    if (!to)
+      return res
+        .status(400)
+        .json({ ok: false, message: "Missing 'to' (admin email)." });
 
     // generate secure token (48 hex chars)
     const token = crypto.randomBytes(24).toString("hex");
@@ -127,7 +236,9 @@ app.post("/api/send-reset-email", async (req, res) => {
     return res.json({ ok: true, message: "Recovery email sent." });
   } catch (err) {
     console.error("Error in /api/send-reset-email:", err);
-    return res.status(500).json({ ok: false, message: "Failed to send reset email." });
+    return res
+      .status(500)
+      .json({ ok: false, message: "Failed to send reset email." });
   }
 });
 
@@ -135,17 +246,23 @@ app.post("/api/send-reset-email", async (req, res) => {
 app.post("/api/confirm-reset", async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
-    if (!email || !token || !newPassword) return res.status(400).json({ ok: false, message: "Missing parameters." });
+    if (!email || !token || !newPassword)
+      return res.status(400).json({ ok: false, message: "Missing parameters." });
 
     const store = await loadJsonSafe(TOKEN_STORE_FILE);
     const entry = store[email];
-    if (!entry) return res.status(400).json({ ok: false, message: "No reset request found for this email." });
+    if (!entry)
+      return res
+        .status(400)
+        .json({ ok: false, message: "No reset request found for this email." });
 
     if (Date.now() > entry.expiry) {
       // cleanup
       delete store[email];
       await saveJsonSafe(TOKEN_STORE_FILE, store);
-      return res.status(400).json({ ok: false, message: "Recovery code expired. Request a new one." });
+      return res
+        .status(400)
+        .json({ ok: false, message: "Recovery code expired. Request a new one." });
     }
 
     const inputHash = crypto.createHash("sha256").update(token).digest("hex");
@@ -158,7 +275,9 @@ app.post("/api/confirm-reset", async (req, res) => {
     const iterations = 100_000;
     const keyLen = 64;
     const digest = "sha512";
-    const derived = crypto.pbkdf2Sync(newPassword, salt, iterations, keyLen, digest).toString("hex");
+    const derived = crypto
+      .pbkdf2Sync(newPassword, salt, iterations, keyLen, digest)
+      .toString("hex");
 
     const credStore = await loadJsonSafe(CRED_STORE_FILE);
     credStore[email] = {
@@ -180,7 +299,9 @@ app.post("/api/confirm-reset", async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error in /api/confirm-reset:", err);
-    return res.status(500).json({ ok: false, message: "Failed to confirm reset." });
+    return res
+      .status(500)
+      .json({ ok: false, message: "Failed to confirm reset." });
   }
 });
 
@@ -188,13 +309,19 @@ app.post("/api/confirm-reset", async (req, res) => {
 app.post("/api/check-login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ ok: false, message: "Missing parameters." });
+    if (!email || !password)
+      return res.status(400).json({ ok: false, message: "Missing parameters." });
     const credStore = await loadJsonSafe(CRED_STORE_FILE);
     const user = credStore[email];
     if (!user) return res.status(400).json({ ok: false, message: "No such admin." });
-    if (user.algorithm !== "pbkdf2") return res.status(500).json({ ok: false, message: "Unsupported algorithm." });
+    if (user.algorithm !== "pbkdf2")
+      return res
+        .status(500)
+        .json({ ok: false, message: "Unsupported algorithm." });
 
-    const derived = crypto.pbkdf2Sync(password, user.salt, user.iterations, user.keyLen, user.digest).toString("hex");
+    const derived = crypto
+      .pbkdf2Sync(password, user.salt, user.iterations, user.keyLen, user.digest)
+      .toString("hex");
     if (derived === user.hash) return res.json({ ok: true });
     return res.status(401).json({ ok: false, message: "Invalid credentials." });
   } catch (err) {
