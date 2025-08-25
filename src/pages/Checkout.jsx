@@ -1,5 +1,4 @@
 // src/pages/Checkout.jsx
-
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -9,8 +8,6 @@ import PrimaryButton from "../components/PrimaryButton";
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Safely access cart data and the new fromPaymentGate flag from location state
   const { cart = [], totalPrice = 0, fromPaymentGate = false } = location.state || {};
 
   const reportCost = fromPaymentGate ? 500 : 0;
@@ -77,11 +74,14 @@ export default function Checkout() {
           </div>
 
           <div className="mt-8 text-center">
-            <PrimaryButton onClick={() => navigate('/payment', { state: { cart, totalPrice, fromPaymentGate: true }})} className="w-full max-w-sm justify-center">
+            <PrimaryButton 
+              onClick={() => navigate('/payment', { state: { cart, totalPrice: finalTotalPrice, fromPaymentGate, isMedicineFlow: true }})} 
+              className="w-full max-w-sm justify-center"
+            >
               Proceed to Payment
             </PrimaryButton>
             <button onClick={() => navigate(-1)} className="mt-4 text-sm text-gray-600 hover:text-orange-500">
-              ← Back to Kits
+              ← Back
             </button>
           </div>
         </main>

@@ -1,3 +1,4 @@
+// src/pages/MedicineDispensing.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -99,7 +100,8 @@ const KitCard = ({ kit, onAddToCart }) => {
 export default function MedicineDispensingWithAdmin() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { fromPaymentGate } = location.state || {};
+  // ✅ The cart from the previous page is preserved
+  const { fromPaymentGate, cart: cartFromPrevPage } = location.state || {};
 
   // load kits from localStorage if present so admin changes persist, otherwise use defaults
   const [medicalKits, setMedicalKits] = useState(() => {
@@ -115,8 +117,8 @@ export default function MedicineDispensingWithAdmin() {
     localStorage.setItem("medicalKits_v1", JSON.stringify(medicalKits));
   }, [medicalKits]);
 
-  // Cart state
-  const [cart, setCart] = useState([]);
+  // ✅ Initialize cart state with the one from the previous page
+  const [cart, setCart] = useState(cartFromPrevPage || []);
 
   const handleAddToCart = (kitToAdd) => {
     setCart((prevCart) => {
