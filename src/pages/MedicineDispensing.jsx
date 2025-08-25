@@ -143,10 +143,9 @@ export default function MedicineDispensingWithAdmin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [showForgot, setShowForgot] = useState(false);
-  const [recoveryInput, setRecoveryInput] = useState("");
   const [newPassword, setNewPassword] = useState("");
   // admin email and password-reset states
-  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "");
+  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "admin@reliv.com");
   const [resetStage, setResetStage] = useState("request"); // 'request' | 'verify'
   const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
@@ -154,19 +153,8 @@ export default function MedicineDispensingWithAdmin() {
   useEffect(() => {
     // initialize admin credentials if missing
     if (!localStorage.getItem("adminPassword_v1")) localStorage.setItem("adminPassword_v1", "admin123");
-    if (!localStorage.getItem("adminRecovery_v1")) localStorage.setItem("adminRecovery_v1", "medkit-reset");
-    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "");
+    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "admin@reliv.com");
   }, []);
-
-  // helper: SHA-256 hex hash
-  const hashString = async (str) => {
-    if (!str) return "";
-    const enc = new TextEncoder();
-    const data = enc.encode(str);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  };
 
   const handleAdminToggle = () => {
     setIsAdminOpen((s) => !s);
@@ -174,95 +162,96 @@ export default function MedicineDispensingWithAdmin() {
     setIsAuthenticated(false);
     setPasswordInput("");
     setShowForgot(false);
-    setRecoveryInput("");
     setNewPassword("");
     setResetStage("request");
     setVerificationCodeInput("");
     setStatusMessage("");
   };
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
-    const stored = localStorage.getItem("adminPassword_v1") || "";
-    if (passwordInput === stored) {
-      setIsAuthenticated(true);
-      setPasswordInput("");
-    } else {
-      alert("Incorrect password");
+    const emailForLogin = localStorage.getItem("adminEmail_v1") || "admin@reliv.com";
+    
+    // Fallback for demo mode if server isn't running
+    if (!navigator.onLine || window.location.hostname === 'localhost') {
+        const storedPassword = localStorage.getItem("adminPassword_v1") || "admin123";
+        if (passwordInput === storedPassword) {
+            setIsAuthenticated(true);
+            setPasswordInput("");
+            return;
+        }
+    }
+
+    try {
+        const res = await fetch("http://localhost:5000/api/check-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailForLogin, password: passwordInput }),
+        });
+        if (res.ok) {
+            setIsAuthenticated(true);
+            setPasswordInput("");
+        } else {
+            const data = await res.json();
+            throw new Error(data.message || "Incorrect password");
+        }
+    } catch (err) {
+        alert(`Login failed: ${err.message}. Ensure the server is running.`);
     }
   };
 
-  // Request a password reset: generates a secure token, stores its hash + expiry, and attempts to send an email.
+  // Request a password reset
   const requestPasswordReset = async (e) => {
-    e && e.preventDefault && e.preventDefault();
-    // ensure an admin email exists
-    const savedEmail = localStorage.getItem("adminEmail_v1") || "";
-    if (!savedEmail) return alert("No admin email is set. Please have an authenticated admin set an email first.");
-
-    // For security, require the user to type the admin email to confirm
-    if (adminEmail.trim() === "" || adminEmail.trim() !== savedEmail.trim()) {
-      return alert("Please enter the registered admin email to request a password reset.");
-    }
-
-    // generate a secure random token
-    const rawToken = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
-    const code = rawToken.split("-")[0]; // short code for email (demo-friendly)
-    const tokenHash = await hashString(code);
-    const expiry = Date.now() + 1000 * 60 * 15; // 15 minutes
-
-    localStorage.setItem("adminResetHash_v1", tokenHash);
-    localStorage.setItem("adminResetExpiry_v1", String(expiry));
-    // store the actual code in localStorage only for demo/testing purposes (remove in production)
-    localStorage.setItem("adminResetDemoCode_v1", code);
-
-    // Try to send an email via a server endpoint (recommended). If not available, fall back to mailto: for demo.
-    const sendPayload = { to: savedEmail, subject: "Admin password reset", text: `Your recovery code is: ${code}. It expires in 15 minutes.` };
-
+    e.preventDefault();
+    setStatusMessage("Sending request...");
     try {
-      // NOTE: This endpoint is **not** provided here. Implement server-side (Supabase function, Netlify function, etc.)
-      await fetch("/api/send-reset-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sendPayload),
-      });
-      setStatusMessage("A recovery email has been sent. Check your inbox.");
+        const res = await fetch("http://localhost:5000/api/send-reset-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ to: adminEmail }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setStatusMessage("A recovery email has been sent. Please check your inbox.");
+            setResetStage("verify");
+        } else {
+            throw new Error(data.message || "Failed to send email.");
+        }
     } catch (err) {
-      // fallback: open mail client with prefilled message (demo only)
-      const mailto = `mailto:${encodeURIComponent(savedEmail)}?subject=${encodeURIComponent(sendPayload.subject)}&body=${encodeURIComponent(sendPayload.text)}`;
-      window.location.href = mailto;
-      setStatusMessage("Could not call server endpoint. Opened your mail client as a fallback with the recovery code (demo). If you want real emails, wire '/api/send-reset-email' to your backend/Supabase/SendGrid.");
-
+        setStatusMessage(`Error: ${err.message}`);
     }
-
-    setResetStage("verify");
   };
 
   const verifyAndResetPassword = async (e) => {
-    e && e.preventDefault && e.preventDefault();
-    const storedHash = localStorage.getItem("adminResetHash_v1");
-    const expiry = Number(localStorage.getItem("adminResetExpiry_v1") || 0);
-    if (!storedHash || Date.now() > expiry) return alert("The recovery code is invalid or has expired. Request a new one.");
-    if (!verificationCodeInput) return alert("Enter the recovery code sent to the admin email.");
-    const inputHash = await hashString(verificationCodeInput.trim());
-    if (inputHash !== storedHash) return alert("Recovery code incorrect.");
-    if (!newPassword) return alert("Enter a new password.");
-    localStorage.setItem("adminPassword_v1", newPassword);
-    // cleanup reset tokens
-    localStorage.removeItem("adminResetHash_v1");
-    localStorage.removeItem("adminResetExpiry_v1");
-    localStorage.removeItem("adminResetDemoCode_v1");
-    alert("Password reset successful. You can now log in with the new password.");
-    setShowForgot(false);
-    setResetStage("request");
-    setVerificationCodeInput("");
-    setNewPassword("");
-    setStatusMessage("");
-  };
-
-  const handleForgotPassword = (e) => {
-    // keep compatibility with older wiring
-    requestPasswordReset(e);
-  };
+    e.preventDefault();
+    setStatusMessage("Verifying...");
+    try {
+        const res = await fetch("http://localhost:5000/api/confirm-reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: adminEmail,
+                token: verificationCodeInput.trim(),
+                newPassword: newPassword,
+            }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            // Also update the local password for demo/fallback purposes
+            localStorage.setItem("adminPassword_v1", newPassword);
+            alert("Password has been reset successfully!");
+            setShowForgot(false);
+            setResetStage("request");
+            setVerificationCodeInput("");
+            setNewPassword("");
+            setStatusMessage("");
+        } else {
+            throw new Error(data.message || "Failed to reset password.");
+        }
+    } catch (err) {
+        setStatusMessage(`Error: ${err.message}`);
+    }
+};
 
   // Allow authenticated admin to change the stored admin email
   const handleSaveAdminEmail = () => {
@@ -368,9 +357,9 @@ export default function MedicineDispensingWithAdmin() {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          (Demo mode: default password is{" "}
-          <span className="font-mono">admin123</span>; recovery code is{" "}
-          <span className="font-mono">medkit-reset</span>)
+            Login is now handled by the server. The default password is{" "}
+          <span className="font-mono">admin123</span> and the default email is{" "}
+          <span className="font-mono">admin@reliv.com</span>
         </p>
       </form>
     ) : (
@@ -400,16 +389,7 @@ export default function MedicineDispensingWithAdmin() {
                 Back to login
               </button>
             </div>
-            <p className="text-xs text-gray-500">
-              {statusMessage ||
-                "(An email will be sent with a short recovery code. For demo, mailto: is used or a server endpoint /api/send-reset-email can be wired.)"}
-            </p>
-            <p className="text-xs text-gray-400">
-              Demo recovery code (visible only in local/demo):{" "}
-              <span className="font-mono">
-                {localStorage.getItem("adminResetDemoCode_v1") || "—"}
-              </span>
-            </p>
+            {statusMessage && <p className="text-xs text-gray-600">{statusMessage}</p>}
           </form>
         ) : resetStage === "verify" ? (
           <form onSubmit={verifyAndResetPassword} className="space-y-4">
@@ -445,12 +425,9 @@ export default function MedicineDispensingWithAdmin() {
                 Cancel
               </button>
             </div>
+             {statusMessage && <p className="text-xs text-red-500">{statusMessage}</p>}
           </form>
         ) : null}
-
-        {resetStage === "request" && statusMessage && (
-          <div className="text-sm text-green-600">{statusMessage}</div>
-        )}
       </div>
     )}
   </div>

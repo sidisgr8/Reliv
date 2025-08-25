@@ -1,17 +1,19 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 
 const PaymentGate = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { cart = [] } = location.state || {};
 
   const startPayment = () => {
     // ✅ Mock payment flow (no Razorpay)
     console.log("🛠️ Simulating payment...");
     setTimeout(() => {
       console.log("✅ Mock Payment Success");
-      navigate("/report"); // Go to report page after fake payment
+      navigate("/report", { state: { cart } }); // Pass cart to report page
     }, 1000); // wait 1 second to mimic processing
   };
 
@@ -46,7 +48,7 @@ const PaymentGate = () => {
           <div className="mt-8">
             <p className="text-gray-600 text-sm">Also want to buy medical kits?</p>
             <button
-              onClick={() => navigate('/medicine-dispensing', { state: { fromPaymentGate: true } })}
+              onClick={() => navigate('/medicine-dispensing', { state: { fromPaymentGate: true, cart } })}
               className="mt-2 text-orange-500 font-semibold hover:underline"
             >
               Browse Medical Kits →

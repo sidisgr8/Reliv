@@ -55,6 +55,39 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// --- Send report email ---
+app.post("/send-report", async (req, res) => {
+    try {
+        const { to, name, pdf } = req.body;
+        if (!to || !pdf) {
+            return res.status(400).json({ ok: false, message: "Missing email or PDF data." });
+        }
+
+        const mailOptions = {
+            from: `Reliv Reports <${process.env.GMAIL_USER}>`,
+            to: to,
+            subject: `Your Health Report from Reliv, ${name || 'User'}`,
+            text: `Hi ${name || 'User'},\n\nPlease find your health report attached.\n\nBest,\nThe Reliv Team`,
+            attachments: [{
+                filename: `Reliv-Health-Report-${name || 'user'}.pdf`,
+                content: pdf.split('base64,')[1],
+                encoding: 'base64',
+                contentType: 'application/pdf'
+            }]
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+
+        console.log(`Sent report to ${to}. Preview URL: ${previewUrl}`);
+        res.json({ ok: true, previewUrl });
+    } catch (err) {
+        console.error("Error in /send-report:", err);
+        res.status(500).json({ ok: false, message: "Failed to send report." });
+    }
+});
+
+
 // --- Mock payment route (unchanged) ---
 app.post("/create-order", (req, res) => {
   res.json({ id: "order_mock_123456", amount: 50000, currency: "INR" });

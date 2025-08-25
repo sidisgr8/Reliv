@@ -1,3 +1,5 @@
+// src/pages/Checkout.jsx
+
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -75,7 +77,7 @@ export default function Checkout() {
           </div>
 
           <div className="mt-8 text-center">
-            <PrimaryButton onClick={() => navigate('/payment')} className="w-full max-w-sm justify-center">
+            <PrimaryButton onClick={() => navigate('/payment', { state: { cart, totalPrice, fromPaymentGate: true }})} className="w-full max-w-sm justify-center">
               Proceed to Payment
             </PrimaryButton>
             <button onClick={() => navigate(-1)} className="mt-4 text-sm text-gray-600 hover:text-orange-500">

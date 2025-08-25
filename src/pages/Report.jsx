@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useHealth } from "../context/HealthContext";
-import { useNavigate } from "react-router-dom"; // ✅ Import useNavigate
+import { useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -54,11 +54,37 @@ function assessEyes(left, right) {
 
 export default function Report() {
   const { data } = useHealth();
-  const navigate = useNavigate(); // ✅ Initialize useNavigate
+  const navigate = useNavigate();
+  const location = useLocation();
   const { patient, vitals } = data;
   const [sending, setSending] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const pdfRef = useRef();
+
+  // Stock reduction logic on component mount
+  useEffect(() => {
+    const { cart } = location.state || {};
+    if (cart && cart.length > 0) {
+      console.log("Processing stock reduction for cart:", cart);
+      try {
+        const storedKitsRaw = localStorage.getItem("medicalKits_v1");
+        if (storedKitsRaw) {
+          const storedKits = JSON.parse(storedKitsRaw);
+          const updatedKits = storedKits.map(kit => {
+            const cartItem = cart.find(item => item.id === kit.id);
+            if (cartItem) {
+              return { ...kit, quantity: kit.quantity - cartItem.quantity };
+            }
+            return kit;
+          });
+          localStorage.setItem("medicalKits_v1", JSON.stringify(updatedKits));
+          console.log("✅ Stock updated successfully.");
+        }
+      } catch (error) {
+        console.error("Failed to update stock:", error);
+      }
+    }
+  }, [location.state]);
 
   const computed = useMemo(() => ({
     bp: assessBP(vitals.systolic, vitals.diastolic),
