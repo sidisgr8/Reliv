@@ -100,10 +100,8 @@ const KitCard = ({ kit, onAddToCart }) => {
 export default function MedicineDispensingWithAdmin() {
   const navigate = useNavigate();
   const location = useLocation();
-  // ✅ The cart from the previous page is preserved
   const { fromPaymentGate, cart: cartFromPrevPage } = location.state || {};
 
-  // load kits from localStorage if present so admin changes persist, otherwise use defaults
   const [medicalKits, setMedicalKits] = useState(() => {
     try {
       const raw = localStorage.getItem("medicalKits_v1");
@@ -117,7 +115,6 @@ export default function MedicineDispensingWithAdmin() {
     localStorage.setItem("medicalKits_v1", JSON.stringify(medicalKits));
   }, [medicalKits]);
 
-  // ✅ Initialize cart state with the one from the previous page
   const [cart, setCart] = useState(cartFromPrevPage || []);
 
   const handleAddToCart = (kitToAdd) => {
@@ -155,21 +152,18 @@ export default function MedicineDispensingWithAdmin() {
   const [passwordInput, setPasswordInput] = useState("");
   const [showForgot, setShowForgot] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  // admin email and password-reset states
-  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "admin@reliv.com");
-  const [resetStage, setResetStage] = useState("request"); // 'request' | 'verify'
+  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "Khanfaizan3234@gmail.com");
+  const [resetStage, setResetStage] = useState("request");
   const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
-    // initialize admin credentials if missing
     if (!localStorage.getItem("adminPassword_v1")) localStorage.setItem("adminPassword_v1", "admin123");
-    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "admin@reliv.com");
+    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "Khanfaizan3234@gmail.com");
   }, []);
 
   const handleAdminToggle = () => {
     setIsAdminOpen((s) => !s);
-    // reset login/reset state when opening
     setIsAuthenticated(false);
     setPasswordInput("");
     setShowForgot(false);
@@ -181,9 +175,8 @@ export default function MedicineDispensingWithAdmin() {
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
-    const emailForLogin = localStorage.getItem("adminEmail_v1") || "admin@reliv.com";
+    const emailForLogin = localStorage.getItem("adminEmail_v1") || "Khanfaizan3234@gmail.com";
     
-    // Fallback for demo mode if server isn't running
     if (!navigator.onLine || window.location.hostname === 'localhost') {
         const storedPassword = localStorage.getItem("adminPassword_v1") || "admin123";
         if (passwordInput === storedPassword) {
@@ -211,7 +204,6 @@ export default function MedicineDispensingWithAdmin() {
     }
   };
 
-  // Request a password reset
   const requestPasswordReset = async (e) => {
     e.preventDefault();
     setStatusMessage("Sending request...");
@@ -248,7 +240,6 @@ export default function MedicineDispensingWithAdmin() {
         });
         const data = await res.json();
         if (res.ok) {
-            // Also update the local password for demo/fallback purposes
             localStorage.setItem("adminPassword_v1", newPassword);
             alert("Password has been reset successfully!");
             setShowForgot(false);
@@ -262,9 +253,8 @@ export default function MedicineDispensingWithAdmin() {
     } catch (err) {
         setStatusMessage(`Error: ${err.message}`);
     }
-};
+  };
 
-  // Allow authenticated admin to change the stored admin email
   const handleSaveAdminEmail = () => {
     localStorage.setItem("adminEmail_v1", adminEmail || "");
     alert("Admin email saved.");
@@ -313,8 +303,6 @@ export default function MedicineDispensingWithAdmin() {
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-800 mt-2">Medicine Dispensing</h1>
             <p className="text-gray-600">Select a kit to add to your cart</p>
           </div>
-
-          {/* Admin icon */}
           <div className="flex items-center gap-3">
             <div className="text-sm text-gray-600">Admin</div>
             <button aria-label="Open admin panel" onClick={handleAdminToggle} className="bg-white p-2 rounded-full shadow hover:scale-105 transition-transform">
@@ -330,7 +318,6 @@ export default function MedicineDispensingWithAdmin() {
         </main>
       </div>
 
-      {/* Floating Cart / Checkout Button */}
       {totalItems > 0 && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-full max-w-md px-4 z-50">
           <button onClick={handleCheckout} className="w-full flex items-center justify-between bg-orange-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:bg-orange-600 transition-all transform hover:scale-105">
@@ -340,7 +327,6 @@ export default function MedicineDispensingWithAdmin() {
         </div>
       )}
 
-      {/* Admin Panel Modal */}
       {isAdminOpen && (
         <div className="fixed inset-0 flex items-start justify-center pt-20 px-4" style={{zIndex: 9999}}>
           <div className="absolute inset-0 bg-black/40" onClick={handleAdminToggle} style={{zIndex: 9998}}></div>
@@ -350,110 +336,106 @@ export default function MedicineDispensingWithAdmin() {
               <button onClick={handleAdminToggle} className="text-gray-600">Close</button>
             </div>
             {!isAuthenticated ? (
-              // Login and password reset forms...
               <div>
-    {!showForgot ? (
-      // --- Normal login form ---
-      <form onSubmit={handleAdminLogin} className="space-y-4">
-        <label className="block text-sm font-medium text-gray-700">Password</label>
-        <input
-          type="password"
-          value={passwordInput}
-          onChange={(e) => setPasswordInput(e.target.value)}
-          className="w-full rounded-md border px-3 py-2"
-          placeholder="Enter admin password"
-        />
-        <div className="flex items-center justify-between gap-4">
-          <PrimaryButton type="submit">Log in</PrimaryButton>
-          <button
-            type="button"
-            onClick={() => {
-              setShowForgot(true);
-              setResetStage("request");
-              setAdminEmail(localStorage.getItem("adminEmail_v1") || "");
-            }}
-            className="text-sm text-blue-600"
-          >
-            Forgot password?
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-            Login is now handled by the server. The default password is{" "}
-          <span className="font-mono">admin123</span> and the default email is{" "}
-          <span className="font-mono">admin@reliv.com</span>
-        </p>
-      </form>
-    ) : (
-      // --- Forgot/reset flow ---
-      <div className="space-y-4">
-        {resetStage === "request" ? (
-          <form onSubmit={requestPasswordReset} className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Registered Admin Email
-            </label>
-            <input
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
-              className="w-full rounded-md border px-3 py-2"
-              placeholder="Enter admin email"
-            />
-            <div className="flex items-center gap-4">
-              <PrimaryButton type="submit">Send recovery email</PrimaryButton>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgot(false);
-                  setResetStage("request");
-                }}
-                className="text-sm text-gray-600"
-              >
-                Back to login
-              </button>
-            </div>
-            {statusMessage && <p className="text-xs text-gray-600">{statusMessage}</p>}
-          </form>
-        ) : resetStage === "verify" ? (
-          <form onSubmit={verifyAndResetPassword} className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Recovery Code
-            </label>
-            <input
-              value={verificationCodeInput}
-              onChange={(e) => setVerificationCodeInput(e.target.value)}
-              className="w-full rounded-md border px-3 py-2"
-              placeholder="Enter the code you received via email"
-            />
-            <label className="block text-sm font-medium text-gray-700">
-              New password
-            </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-md border px-3 py-2"
-              placeholder="Set a new password"
-            />
-            <div className="flex items-center gap-4">
-              <PrimaryButton type="submit">Reset password</PrimaryButton>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgot(false);
-                  setResetStage("request");
-                }}
-                className="text-sm text-gray-600"
-              >
-                Cancel
-              </button>
-            </div>
-             {statusMessage && <p className="text-xs text-red-500">{statusMessage}</p>}
-          </form>
-        ) : null}
-      </div>
-    )}
-  </div>
+                {!showForgot ? (
+                  <form onSubmit={handleAdminLogin} className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700">Password</label>
+                    <input
+                      type="password"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="Enter admin password"
+                    />
+                    <div className="flex items-center justify-between gap-4">
+                      <PrimaryButton type="submit">Log in</PrimaryButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgot(true);
+                          setResetStage("request");
+                          setAdminEmail(localStorage.getItem("adminEmail_v1") || "");
+                        }}
+                        className="text-sm text-blue-600"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                        Login is now handled by the server. The default password is{" "}
+                      <span className="font-mono">admin123</span> and the default email is{" "}
+                      <span className="font-mono">Khanfaizan3234@gmail.com</span>
+                    </p>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    {resetStage === "request" ? (
+                      <form onSubmit={requestPasswordReset} className="space-y-4">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Registered Admin Email
+                        </label>
+                        <input
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
+                          className="w-full rounded-md border px-3 py-2"
+                          placeholder="Enter admin email"
+                        />
+                        <div className="flex items-center gap-4">
+                          <PrimaryButton type="submit">Send recovery email</PrimaryButton>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowForgot(false);
+                              setResetStage("request");
+                            }}
+                            className="text-sm text-gray-600"
+                          >
+                            Back to login
+                          </button>
+                        </div>
+                        {statusMessage && <p className="text-xs text-gray-600">{statusMessage}</p>}
+                      </form>
+                    ) : resetStage === "verify" ? (
+                      <form onSubmit={verifyAndResetPassword} className="space-y-4">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Recovery Code
+                        </label>
+                        <input
+                          value={verificationCodeInput}
+                          onChange={(e) => setVerificationCodeInput(e.target.value)}
+                          className="w-full rounded-md border px-3 py-2"
+                          placeholder="Enter the code you received via email"
+                        />
+                        <label className="block text-sm font-medium text-gray-700">
+                          New password
+                        </label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full rounded-md border px-3 py-2"
+                          placeholder="Set a new password"
+                        />
+                        <div className="flex items-center gap-4">
+                          <PrimaryButton type="submit">Reset password</PrimaryButton>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowForgot(false);
+                              setResetStage("request");
+                            }}
+                            className="text-sm text-gray-600"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                         {statusMessage && <p className="text-xs text-red-500">{statusMessage}</p>}
+                      </form>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             ) : (
-              // --- Authenticated admin panel ---
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -475,22 +457,6 @@ export default function MedicineDispensingWithAdmin() {
                       Log out
                     </PrimaryButton>
                   </div>
-                </div>
-
-                <div className="mb-4 flex items-center gap-3">
-                  <label className="text-sm text-gray-600">Admin email</label>
-                  <input
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className="rounded-md border px-2 py-1"
-                    placeholder="admin@example.com"
-                  />
-                  <button
-                    onClick={handleSaveAdminEmail}
-                    className="text-sm px-3 py-1 rounded-md border"
-                  >
-                    Save email
-                  </button>
                 </div>
 
                 <div className="space-y-4 max-h-96 overflow-auto pr-2">
