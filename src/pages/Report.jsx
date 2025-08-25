@@ -1,9 +1,9 @@
-// src/pages/Report.jsx
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useHealth } from "../context/HealthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import UVCleansingAnimation from "../components/UVCleansingAnimation"; // Import the animation component
 
 // --- Helper Functions (assessBP, assessSpO2, etc. - unchanged) ---
 function assessBP(sys, dia) {
@@ -99,7 +99,7 @@ export default function Report() {
   const location = useLocation();
   const { patient, vitals } = data;
   const [sending, setSending] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [showCleansing, setShowCleansing] = useState(false); // State to control animation
   const pdfRef = useRef();
   const stockUpdated = useRef(false);
 
@@ -198,13 +198,7 @@ export default function Report() {
       });
       const result = await res.json();
       if (result.ok) {
-        if (result.previewUrl) {
-          setPreviewUrl(result.previewUrl);
-          alert("Report sent to test inbox. Opening preview...");
-          window.open(result.previewUrl, "_blank");
-        } else {
-          alert("Report emailed successfully!");
-        }
+        setShowCleansing(true); // Trigger the animation on success
       } else {
         alert("Could not send email. Please try again.");
       }
@@ -332,11 +326,6 @@ export default function Report() {
           >
             {sending ? "Sending..." : "Email Report"}
           </button>
-          {sending && (
-            <span className="block w-full text-center text-xs text-gray-500 mt-2">
-              😉 Your report will be sent within a day!
-            </span>
-          )}
           <button
             onClick={handleDownloadPdf}
             className="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105"
@@ -349,23 +338,16 @@ export default function Report() {
           >
             Home
           </button>
-          {previewUrl && (
-            <a
-              href={previewUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-300 transition-transform transform hover:scale-105 text-center"
-            >
-              Open Test Email
-            </a>
-          )}
         </div>
       </div>
+
+      {/* Conditionally render the animation overlay */}
+      {showCleansing && <UVCleansingAnimation onComplete={() => navigate('/')} />}
     </div>
   );
 }
 
-// --- New Reusable VitalCard Component ---
+// --- Reusable VitalCard Component ---
 const VitalCard = ({ label, value, status, note, className = "" }) => {
   const getStatusColor = (statusLabel) => {
     const lowerCaseStatus = statusLabel.toLowerCase();

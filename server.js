@@ -356,11 +356,6 @@ app.post("/send-report", async (req, res) => {
   }
 });
 
-// --- Mock payment route (unchanged) ---
-app.post("/create-order", (req, res) => {
-  res.json({ id: "order_mock_123456", amount: 50000, currency: "INR" });
-});
-
 // --- Send reset email ---
 app.post("/api/send-reset-email", async (req, res) => {
   try {
@@ -370,19 +365,19 @@ app.post("/api/send-reset-email", async (req, res) => {
         .status(400)
         .json({ ok: false, message: "Missing 'to' (admin email)." });
 
-    // generate secure token (48 hex chars)
-    const token = crypto.randomBytes(24).toString("hex");
+    // Generate a 6-digit recovery code
+    const token = Math.floor(100000 + Math.random() * 900000).toString();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiry = Date.now() + 1000 * 60 * 15; // 15 minutes
 
-    // persist hash + expiry keyed by email
+    // Persist hash + expiry keyed by email
     const store = await loadJsonSafe(TOKEN_STORE_FILE);
     store[to] = { tokenHash, expiry };
     await saveJsonSafe(TOKEN_STORE_FILE, store);
 
     // Prepare email
     const subject = "Admin password reset — your recovery code";
-    const text = `You (or someone claiming to be you) requested a password reset.\n\nRecovery code: ${token}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`;
+    const text = `You (or someone claiming to be you) requested a password reset.\n\nYour recovery code is: ${token}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`;
 
     const mailOptions = {
       from: `Reliv Reports <${process.env.GMAIL_USER}>`,
