@@ -113,37 +113,38 @@ function assessEyes(left, right) {
 }
 
 const VitalsHistoryChart = ({ history, currentVitals }) => {
-    const combinedHistory = [...history, { ...currentVitals, createdAt: new Date() }];
+    const combinedHistory = [...history, { ...currentVitals, createdAt: new Date() }]
+        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     const chartData = {
-        labels: combinedHistory.map(h => new Date(h.createdAt).toLocaleDateString()).reverse(),
+        labels: combinedHistory.map(h => new Date(h.createdAt).toLocaleDateString()),
         datasets: [
             {
                 label: 'Systolic BP',
-                data: combinedHistory.map(h => h.vitals.systolic).reverse(),
+                data: combinedHistory.map(h => h.vitals.systolic),
                 borderColor: 'rgb(255, 99, 132)',
                 backgroundColor: 'rgba(255, 99, 132, 0.5)',
             },
             {
                 label: 'Diastolic BP',
-                data: combinedHistory.map(h => h.vitals.diastolic).reverse(),
+                data: combinedHistory.map(h => h.vitals.diastolic),
                 borderColor: 'rgb(54, 162, 235)',
                 backgroundColor: 'rgba(54, 162, 235, 0.5)',
             },
             {
                 label: 'Pulse',
-                data: combinedHistory.map(h => h.vitals.pulse).reverse(),
+                data: combinedHistory.map(h => h.vitals.pulse),
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
             },
             {
                 label: 'SpO2',
-                data: combinedHistory.map(h => h.vitals.spo2).reverse(),
+                data: combinedHistory.map(h => h.vitals.spo2),
                 borderColor: 'rgb(153, 102, 255)',
                 backgroundColor: 'rgba(153, 102, 255, 0.5)',
             },
             {
                 label: 'Temperature (°F)',
-                data: combinedHistory.map(h => h.vitals.tempF).reverse(),
+                data: combinedHistory.map(h => h.vitals.tempF),
                 borderColor: 'rgb(255, 159, 64)',
                 backgroundColor: 'rgba(255, 159, 64, 0.5)',
             },
