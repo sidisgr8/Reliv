@@ -3,7 +3,28 @@ import { useHealth } from "../context/HealthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import UVCleansingAnimation from "../components/UVCleansingAnimation"; // Import the animation component
+import UVCleansingAnimation from "../components/UVCleansingAnimation";
+import { Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // --- Helper Functions (assessBP, assessSpO2, etc. - unchanged) ---
 function assessBP(sys, dia) {
@@ -91,6 +112,61 @@ function assessEyes(left, right) {
   };
 }
 
+const VitalsHistoryChart = ({ history, currentVitals }) => {
+    const combinedHistory = [...history, { ...currentVitals, createdAt: new Date() }];
+    const chartData = {
+        labels: combinedHistory.map(h => new Date(h.createdAt).toLocaleDateString()).reverse(),
+        datasets: [
+            {
+                label: 'Systolic BP',
+                data: combinedHistory.map(h => h.vitals.systolic).reverse(),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+            },
+            {
+                label: 'Diastolic BP',
+                data: combinedHistory.map(h => h.vitals.diastolic).reverse(),
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            },
+            {
+                label: 'Pulse',
+                data: combinedHistory.map(h => h.vitals.pulse).reverse(),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+            },
+            {
+                label: 'SpO2',
+                data: combinedHistory.map(h => h.vitals.spo2).reverse(),
+                borderColor: 'rgb(153, 102, 255)',
+                backgroundColor: 'rgba(153, 102, 255, 0.5)',
+            },
+            {
+                label: 'Temperature (°F)',
+                data: combinedHistory.map(h => h.vitals.tempF).reverse(),
+                borderColor: 'rgb(255, 159, 64)',
+                backgroundColor: 'rgba(255, 159, 64, 0.5)',
+            },
+        ],
+    };
+
+    const options = {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Vitals History'
+            }
+        },
+        animation: {
+            duration: 0 // Disable animation
+        }
+    };
+
+    return <Line options={options} data={chartData} />;
+};
+
+
 // --- Main Report Component ---
 
 export default function Report() {
@@ -104,7 +180,46 @@ export default function Report() {
   const [ecoStats, setEcoStats] = useState(null);
   const pdfRef = useRef();
   const stockUpdated = useRef(false);
+  const [history, setHistory] = useState([]);
+  const [qrCode, setQrCode] = useState('');
+  const [reportId, setReportId] = useState(null);
   
+  
+  useEffect(() => {
+    const fetchHistoryAndGenerateQR = async () => {
+        if (patient.email) {
+            try {
+                // Fetch history
+                const historyRes = await fetch(`http://localhost:5000/api/reports/history/${patient.email}`);
+                const historyData = await historyRes.json();
+                setHistory(historyData);
+
+                // Save current report and get ID
+                const reportRes = await fetch("http://localhost:5000/send-report", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ to: patient.email, name: patient.name, healthData: data }),
+                });
+                const reportData = await reportRes.json();
+                if (reportData.ok) {
+                    setReportId(reportData.reportId);
+                    // Generate QR code
+                    const qrRes = await fetch('http://localhost:5000/api/qr-code', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: `http://localhost:5000/api/report/${reportData.reportId}/download` }),
+                    });
+                    const qrData = await qrRes.json();
+                    setQrCode(qrData.qrCode);
+                }
+            } catch (error) {
+                console.error("Failed to fetch report history or generate QR code:", error);
+            }
+        }
+    };
+    fetchHistoryAndGenerateQR();
+}, [patient.email]);
+
   // Fetch eco stats on component mount
   useEffect(() => {
     const fetchEcoStats = async () => {
@@ -206,11 +321,23 @@ export default function Report() {
 
   const handleSendEmail = async () => {
     setSending(true);
+    const content = pdfRef.current;
+    content.classList.add("pdf-render");
+    const canvas = await html2canvas(content, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        windowWidth: content.scrollWidth,
+        windowHeight: content.scrollHeight,
+    });
+    content.classList.remove("pdf-render");
+    const imgData = canvas.toDataURL("image/png");
+
     try {
       const res = await fetch("http://localhost:5000/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: patient.email, name: patient.name, healthData: data }),
+        body: JSON.stringify({ to: patient.email, name: patient.name, healthData: data, reportImage: imgData }),
       });
       const result = await res.json();
       if (result.ok) {
@@ -364,6 +491,24 @@ export default function Report() {
                 />
               </div>
             </section>
+            {history.length > 0 && (
+                <section className="mt-8">
+                    <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                        Vitals History
+                    </h3>
+                    <VitalsHistoryChart history={history} currentVitals={data} />
+                </section>
+            )}
+             {qrCode && (
+                <section className="mt-8 text-center">
+                    <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                        Download Your Report
+                    </h3>
+                    <div className="flex justify-center">
+                        <img src={qrCode} alt="QR Code to download report" />
+                    </div>
+                </section>
+            )}
             <footer className="text-center text-xs text-gray-400 mt-12 pt-4 border-t">
               <p>
                 This report is for informational purposes only and is not a

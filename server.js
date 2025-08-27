@@ -8,8 +8,9 @@ import fs from "fs/promises";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { google } from 'googleapis';
-import { MongoClient } from 'mongodb'; // Import MongoClient
+import { MongoClient, ObjectId } from 'mongodb'; // Import MongoClient and ObjectId
 import Razorpay from 'razorpay'; // Import Razorpay
+import QRCode from 'qrcode';
 
 dotenv.config();
 
@@ -139,6 +140,24 @@ function assessEyes(left, right) {
     note: "This is a basic screening. Smaller line numbers indicate better acuity.",
   };
 }
+
+const generatePdfFromImage = (imageBase64) => {
+    return new Promise((resolve) => {
+        const doc = new PDFDocument({ size: 'A4', margin: 0 });
+        const buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+        // The image is already a full A4 render, so just place it on the page
+        doc.image(imageBase64, 0, 0, {
+            fit: [doc.page.width, doc.page.height],
+            align: 'center',
+            valign: 'center'
+        });
+
+        doc.end();
+    });
+};
 
 // --- PDF Generation Logic (Unchanged) ---
 function generateReportPdf(data, ecoStats) {
@@ -326,6 +345,39 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+app.get('/api/report/:id/download', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const report = await db.collection('reports').findOne({ _id: new ObjectId(id) });
+        if (!report) {
+            return res.status(404).send("Report not found");
+        }
+        const ecoStats = await (await fetch(`http://localhost:${process.env.PORT || 5000}/api/eco-stats`)).json();
+        const pdfBuffer = await generateReportPdf(report, ecoStats);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Reliv-Health-Report-${report.patient.name || 'user'}.pdf`);
+        res.send(pdfBuffer);
+    } catch (err) {
+        console.error("Error in /api/report/:id/download:", err);
+        res.status(500).send("Server Error");
+    }
+});
+
+app.post('/api/qr-code', async (req, res) => {
+    try {
+        const { url } = req.body;
+        if (!url) {
+            return res.status(400).json({ error: 'URL is required' });
+        }
+        const qrCode = await QRCode.toDataURL(url);
+        res.json({ qrCode });
+    } catch (err) {
+        console.error("Error generating QR code:", err);
+        res.status(500).json({ error: 'Failed to generate QR code' });
+    }
+});
+
+
 // --- NEW: Razorpay Order Creation Endpoint ---
 app.post("/api/create-order", async (req, res) => {
   try {
@@ -386,21 +438,20 @@ app.get("/api/eco-stats", async (req, res) => {
 // Send report email AND save to database
 app.post("/send-report", async (req, res) => {
   try {
-    const { to, name, healthData } = req.body;
+    const { to, name, healthData, reportImage } = req.body;
     if (!to || !healthData) {
       return res.status(400).json({ ok: false, message: "Missing email or health data." });
     }
 
     // *** NEW: Save report data to MongoDB Atlas ***
     const reportsCollection = db.collection('reports');
-    await reportsCollection.insertOne({ ...healthData, createdAt: new Date() });
+    const result = await reportsCollection.insertOne({ ...healthData, createdAt: new Date() });
     console.log("📈 Report data saved to MongoDB.");
     
-    // Fetch eco stats
-    const ecoStatsResponse = await fetch(`http://localhost:${PORT}/api/eco-stats`);
-    const ecoStats = await ecoStatsResponse.json();
+    const pdfBuffer = reportImage
+        ? await generatePdfFromImage(reportImage)
+        : await generateReportPdf(healthData, await (await fetch(`http://localhost:${PORT}/api/eco-stats`)).json());
 
-    const pdfBuffer = await generateReportPdf(healthData, ecoStats);
     const mailOptions = {
       from: `Reliv Reports <${process.env.GMAIL_USER}>`,
       to,
@@ -418,7 +469,7 @@ app.post("/send-report", async (req, res) => {
     console.log(`Report sent to ${to}`);
     
     // *** FIX: Respond with success immediately after sending ***
-    res.json({ ok: true });
+    res.json({ ok: true, reportId: result.insertedId });
 
   } catch (err) {
     console.error("Error in /send-report:", err);
@@ -475,6 +526,17 @@ app.post("/api/send-receipt", async (req, res) => {
 async function ensureDataDir() { try { await fs.mkdir(DATA_DIR, { recursive: true }); } catch (e) { console.error("Could not create data dir:", e); } }
 async function loadJsonSafe(filePath) { try { const raw = await fs.readFile(filePath, "utf8"); return JSON.parse(raw || "{}"); } catch (e) { return {}; } }
 async function saveJsonSafe(filePath, obj) { await ensureDataDir(); await fs.writeFile(filePath, JSON.stringify(obj, null, 2), "utf8"); }
+
+app.get("/api/reports/history/:email", async (req, res) => {
+    try {
+        const { email } = req.params;
+        const reports = await db.collection('reports').find({ "patient.email": email }).sort({ createdAt: -1 }).limit(10).toArray();
+        res.json(reports);
+    } catch (err) {
+        console.error("Error fetching report history:", err);
+        res.status(500).json({ error: "Failed to fetch report history." });
+    }
+});
 
 app.post("/api/send-reset-email", async (req, res) => {
     try {
