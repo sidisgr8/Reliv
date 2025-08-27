@@ -71,10 +71,7 @@ function assessPulse(pulse) {
       advice: "Resting heart rate is within normal range.",
     };
   if (v < 60)
-    return {
-      label: "Low",
-      advice: "Could be normal for athletes; else, monitor.",
-    };
+    return { label: "Low", advice: "Could be normal for athletes; else, monitor." };
   return {
     label: "High",
     advice: "Tachycardia; consider rest and consult if persistent.",
@@ -296,7 +293,7 @@ function generateReceiptPdf(data) {
       });
   
       // --- PDF Content ---
-      const { patient, cart, totalPrice } = data;
+      const { patient, cart, totalPrice, needsReport } = data;
   
       // Header
       doc.fontSize(25).text("Reliv Purchase Receipt", { align: "center" });
@@ -319,14 +316,25 @@ function generateReceiptPdf(data) {
       doc.font("Helvetica");
   
       let y = 280;
-      cart.forEach(item => {
-        doc.text(item.name, 50, y);
-        doc.text(item.quantity.toString(), 250, y, { width: 100, align: "right" });
-        doc.text(`₹${item.price}`, 350, y, { width: 100, align: "right" });
-        doc.text(`₹${item.price * item.quantity}`, 450, y, { width: 100, align: "right" });
+
+      if (needsReport) {
+        doc.text("Health Checkup Report", 50, y);
+        doc.text("1", 250, y, { width: 100, align: "right" });
+        doc.text("₹500", 350, y, { width: 100, align: "right" });
+        doc.text("₹500", 450, y, { width: 100, align: "right" });
         y += 20;
-      });
-  
+      }
+
+      if (cart) {
+        cart.forEach(item => {
+            doc.text(item.name, 50, y);
+            doc.text(item.quantity.toString(), 250, y, { width: 100, align: "right" });
+            doc.text(`₹${item.price}`, 350, y, { width: 100, align: "right" });
+            doc.text(`₹${item.price * item.quantity}`, 450, y, { width: 100, align: "right" });
+            y += 20;
+        });
+      }
+
       doc.moveTo(50, y).lineTo(550, y).stroke();
       doc.moveDown();
   
@@ -417,12 +425,16 @@ app.post("/send-report", async (req, res) => {
 // --- NEW: Send receipt email ---
 app.post("/api/send-receipt", async (req, res) => {
     try {
-      const { patient, cart, totalPrice } = req.body;
-      if (!patient || !patient.email || !cart || !totalPrice) {
-        return res.status(400).json({ ok: false, message: "Missing required receipt data." });
+      const { patient, cart, totalPrice, needsReport } = req.body;
+      if (!patient || !patient.email) {
+        return res.status(400).json({ ok: false, message: "Missing patient email." });
+      }
+
+      if (!needsReport && (!cart || cart.length === 0 || !totalPrice)) {
+        return res.status(400).json({ ok: false, message: "Missing cart items for purchase." });
       }
   
-      const pdfBuffer = await generateReceiptPdf({ patient, cart, totalPrice });
+      const pdfBuffer = await generateReceiptPdf({ patient, cart, totalPrice, needsReport });
   
       const mailOptions = {
         from: `Reliv Receipts <${process.env.GMAIL_USER}>`,

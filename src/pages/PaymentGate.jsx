@@ -31,8 +31,8 @@ const PaymentGate = () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     console.log("✅ Mock Payment Success");
   
-    // After payment, try to send a receipt if there are items in the cart
-    if (cart.length > 0 && healthData.patient.email) {
+    // After payment, try to send a receipt if there are items in the cart or a report was generated
+    if ((needsReport || cart.length > 0) && healthData.patient.email) {
       try {
         console.log("Attempting to send receipt...");
         await fetch('http://localhost:5000/api/send-receipt', {
@@ -41,7 +41,8 @@ const PaymentGate = () => {
           body: JSON.stringify({
             patient: healthData.patient,
             cart,
-            totalPrice,
+            totalPrice: paymentAmount,
+            needsReport,
           }),
         });
         console.log("Receipt email request sent.");
