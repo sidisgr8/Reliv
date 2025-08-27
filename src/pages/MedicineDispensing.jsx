@@ -295,6 +295,10 @@ export default function MedicineDispensingWithAdmin() {
     // =================================================================
   // === NEW: GOOGLE DRIVE API HANDLER ===============================
   // =================================================================
+  // src/pages/MedicineDispensing.jsx
+
+// ... (other code)
+
   const handleGdriveUrl = async (kitId, url) => {
     if (!url || !url.includes("drive.google.com")) {
       return; // Not a GDrive link
@@ -309,7 +313,7 @@ export default function MedicineDispensingWithAdmin() {
       const fileId = match[1];
 
       // Call our new backend endpoint
-      const response = await fetch(`/api/gdrive-image/${fileId}`);
+      const response = await fetch(`http://localhost:5000/api/gdrive-image/${fileId}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -324,6 +328,7 @@ export default function MedicineDispensingWithAdmin() {
     }
   };
 
+// ... (other code)
   return (
     <div className="relative min-h-screen bg-gray-50 font-sans pb-28">
       <TopEllipseBackground color="#FFF1EA" height="40%" />

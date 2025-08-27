@@ -20,6 +20,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const DATA_DIR = process.env.DATA_DIR || "./data";
 const TOKEN_STORE_FILE = path.join(DATA_DIR, "reset_tokens.json");
 const CRED_STORE_FILE = path.join(DATA_DIR, "admin_credentials.json");
+const SERVICE_ACCOUNT_KEY_PATH = path.join(DATA_DIR, 'service-account-key.json');
 
 // --- Helper Functions ---
 
@@ -499,36 +500,50 @@ app.post("/api/check-login", async (req, res) => {
   }
 });
 
+// server.js
+
+// ... (previous code)
+
 // =================================================================
 // === NEW: GOOGLE DRIVE API ENDPOINT (using Service Account) ======
 // =================================================================
+
+
 app.get('/api/gdrive-image/:fileId', async (req, res) => {
     const { fileId } = req.params;
 
     try {
-        // Authenticate using the service account key file
         const auth = new google.auth.GoogleAuth({
             keyFile: SERVICE_ACCOUNT_KEY_PATH,
             scopes: ['https://www.googleapis.com/auth/drive.readonly'],
         });
 
         const drive = google.drive({ version: 'v3', auth });
-        
-        // Fetch the webContentLink for direct access
-        const file = await drive.files.get({
-            fileId: fileId,
-            fields: 'webContentLink, thumbnailLink',
-        });
 
-        const imageUrl = file.data.webContentLink || file.data.thumbnailLink;
-        
-        if (imageUrl) {
-            // The link provided is often a download link, remove the export part for embedding
-            const embeddableUrl = imageUrl.replace('&export=download', '');
-            res.status(200).json({ imageUrl: embeddableUrl });
-        } else {
-            res.status(404).json({ message: "Could not retrieve a public link for this file." });
+        // 1. Get file metadata to find the MIME type (e.g., 'image/jpeg')
+        const fileMetadata = await drive.files.get({
+            fileId: fileId,
+            fields: 'mimeType',
+        });
+        const mimeType = fileMetadata.data.mimeType;
+        if (!mimeType || !mimeType.startsWith('image/')) {
+            return res.status(400).json({ message: 'File is not an image.' });
         }
+
+        // 2. Download the file content
+        const response = await drive.files.get(
+            { fileId: fileId, alt: 'media' },
+            { responseType: 'arraybuffer' }
+        );
+
+        // 3. Convert image data to a Base64 Data URI
+        const imageBuffer = Buffer.from(response.data);
+        const imageBase64 = imageBuffer.toString('base64');
+        const imageUrl = `data:${mimeType};base64,${imageBase64}`;
+
+        // 4. Send the Data URI back to the frontend
+        res.status(200).json({ imageUrl });
+
     } catch (error) {
         console.error("Google Drive API Error:", error.message);
         if (error.code === 'ENOENT') {
@@ -546,6 +561,9 @@ app.get('/api/gdrive-image/:fileId', async (req, res) => {
         res.status(500).json({ message: "An unknown error occurred while fetching the image from Google Drive." });
     }
 });
+
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
