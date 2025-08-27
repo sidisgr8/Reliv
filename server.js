@@ -209,6 +209,10 @@ function generateReportPdf(data, ecoStats) {
     });
   }
 
+
+
+
+
   function generateReceiptPdf(data, ecoStats) {
     return new Promise((resolve) => {
       const doc = new PDFDocument({ size: "A4", margin: 50 });
@@ -217,7 +221,17 @@ function generateReportPdf(data, ecoStats) {
       doc.on("end", () => resolve(Buffer.concat(buffers)));
 
       const { patient, cart, totalPrice, needsReport } = data;
-      doc.fontSize(25).text("Reliv Purchase Receipt", { align: "center" });
+      
+      // --- START: Updated Branding ---
+      doc.fontSize(32).font("Helvetica-Bold");
+      const relWidth = doc.widthOfString("Rel");
+      const ivWidth = doc.widthOfString("iv");
+      const totalLogoWidth = relWidth + ivWidth;
+      const logoStartX = (doc.page.width - totalLogoWidth) / 2;
+      doc.fillColor("#F97316").text("Rel", logoStartX, 50, { continued: true }).fillColor("#000000").text("iv");
+      doc.fontSize(18).fillColor("#000000").font("Helvetica").text("Purchase Receipt", 0, 90, { align: "center" });
+      // --- END: Updated Branding ---
+      
       doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString()}`, { align: "right" });
       doc.moveDown();
       doc.fontSize(14).text("Billed To:", { underline: true });
@@ -235,16 +249,16 @@ function generateReportPdf(data, ecoStats) {
       if (needsReport) {
         doc.text("Health Checkup Report", 50, y);
         doc.text("1", 250, y, { width: 100, align: "right" });
-        doc.text("₹500", 350, y, { width: 100, align: "right" });
-        doc.text("₹500", 450, y, { width: 100, align: "right" });
+        doc.text("INR 500", 350, y, { width: 100, align: "right" });
+        doc.text("INR 500", 450, y, { width: 100, align: "right" });
         y += 20;
       }
       if (cart) {
         cart.forEach(item => {
           doc.text(item.name, 50, y);
           doc.text(item.quantity.toString(), 250, y, { width: 100, align: "right" });
-          doc.text(`₹${item.price}`, 350, y, { width: 100, align: "right" });
-          doc.text(`₹${item.price * item.quantity}`, 450, y, { width: 100, align: "right" });
+          doc.text(`INR ${item.price}`, 350, y, { width: 100, align: "right" });
+          doc.text(`INR ${item.price * item.quantity}`, 450, y, { width: 100, align: "right" });
           y += 20;
         });
       }
@@ -252,7 +266,7 @@ function generateReportPdf(data, ecoStats) {
       doc.moveDown();
       doc.font("Helvetica-Bold");
       doc.text("Total Paid:", 350, y + 10, { width: 100, align: "right" });
-      doc.text(`₹${totalPrice}`, 450, y + 10, { width: 100, align: "right" });
+      doc.text(`INR ${totalPrice}`, 450, y + 10, { width: 100, align: "right" });
       
       if (ecoStats) {
         doc.fontSize(8).fillColor("#9CA3AF").text(
@@ -264,6 +278,8 @@ function generateReportPdf(data, ecoStats) {
       doc.end();
     });
   }
+
+
 
 // --- Mail Transporter (Unchanged) ---
 const transporter = nodemailer.createTransport({
@@ -283,7 +299,7 @@ app.post("/api/create-order", async (req, res) => {
     const { amount } = req.body;
     const options = {
       amount: amount * 100, // Amount in paise
-      currency: "INR",
+      currency: "INR ",
       receipt: `receipt_order_${new Date().getTime()}`,
     };
     const order = await razorpay.orders.create(options);
