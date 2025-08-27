@@ -99,6 +99,7 @@ export default function Report() {
   const location = useLocation();
   const { patient, vitals } = data;
   const [sending, setSending] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [showCleansing, setShowCleansing] = useState(false); // State to control animation
   const pdfRef = useRef();
   const stockUpdated = useRef(false);
@@ -210,6 +211,47 @@ export default function Report() {
     }
   };
 
+  const handleReadAloud = () => {
+    if (isSpeaking) {
+      speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const textToRead = `
+      Health Screening Report for ${patient.name || 'the user'}.
+      Patient Information:
+      Name: ${patient.name || 'Not provided'}.
+      Age: ${patient.age || 'Not provided'}.
+      Gender: ${patient.gender || 'Not provided'}.
+      Phone: ${patient.phone || 'Not provided'}.
+      Email: ${patient.email || 'Not provided'}.
+      Health Vitals:
+      Blood Pressure: ${vitals.systolic || 'none'} over ${vitals.diastolic || 'none'}. Status: ${computed.bp.label}. Advice: ${computed.bp.advice}.
+      Oxygen Saturation: ${vitals.spo2 || 'none'} percent. Status: ${computed.spo2.label}. Advice: ${computed.spo2.advice}.
+      Pulse Rate: ${vitals.pulse || 'none'} B P M. Status: ${computed.pulse.label}. Advice: ${computed.pulse.advice}.
+      Body Temperature: ${vitals.tempF || 'none'} degrees Fahrenheit. Status: ${computed.temp.label}. Advice: ${computed.temp.advice}.
+      Visual Acuity: ${computed.eyes.summary}. Note: ${computed.eyes.note}.
+      This report is for informational purposes only.
+    `;
+
+    const utterance = new SpeechSynthesisUtterance(textToRead.trim());
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
+  };
+
+  // Cleanup speech on component unmount
+  useEffect(() => {
+    return () => {
+      if (isSpeaking) {
+        speechSynthesis.cancel();
+      }
+    };
+  }, [isSpeaking]);
+
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-3xl mx-auto">
@@ -319,6 +361,12 @@ export default function Report() {
         </div>
 
         <div className="flex flex-wrap gap-4 justify-center mt-8">
+           <button
+            onClick={handleReadAloud}
+            className="bg-blue-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105"
+          >
+            {isSpeaking ? "Stop Reading" : "Read Report Aloud"}
+          </button>
           <button
             onClick={handleSendEmail}
             disabled={sending || !patient.email}
