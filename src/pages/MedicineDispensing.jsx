@@ -152,14 +152,14 @@ export default function MedicineDispensingWithAdmin() {
   const [passwordInput, setPasswordInput] = useState("");
   const [showForgot, setShowForgot] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "Khanfaizan3234@gmail.com");
+  const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "ramanoswal13@gmail.com");
   const [resetStage, setResetStage] = useState("request");
   const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
     if (!localStorage.getItem("adminPassword_v1")) localStorage.setItem("adminPassword_v1", "admin123");
-    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "Khanfaizan3234@gmail.com");
+    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "ramanoswal13@gmail.com");
   }, []);
 
   const handleAdminToggle = () => {
@@ -175,7 +175,7 @@ export default function MedicineDispensingWithAdmin() {
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
-    const emailForLogin = localStorage.getItem("adminEmail_v1") || "Khanfaizan3234@gmail.com";
+    const emailForLogin = localStorage.getItem("adminEmail_v1") || "ramanoswal13@gmail.com";
     
     if (!navigator.onLine || window.location.hostname === 'localhost') {
         const storedPassword = localStorage.getItem("adminPassword_v1") || "admin123";
@@ -292,6 +292,38 @@ export default function MedicineDispensingWithAdmin() {
     reader.readAsDataURL(file);
   };
 
+    // =================================================================
+  // === NEW: GOOGLE DRIVE API HANDLER ===============================
+  // =================================================================
+  const handleGdriveUrl = async (kitId, url) => {
+    if (!url || !url.includes("drive.google.com")) {
+      return; // Not a GDrive link
+    }
+    try {
+      const regex = /drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/;
+      const match = url.match(regex);
+      if (!match || !match[1]) {
+        alert("Could not extract file ID. Please use a valid Google Drive shareable link.");
+        return;
+      }
+      const fileId = match[1];
+
+      // Call our new backend endpoint
+      const response = await fetch(`/api/gdrive-image/${fileId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch image.');
+      }
+
+      handleUpdateKitField(kitId, "imageUrl", data.imageUrl);
+
+    } catch (error) {
+      console.error("Error fetching GDrive image:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-50 font-sans pb-28">
       <TopEllipseBackground color="#FFF1EA" height="40%" />
@@ -364,7 +396,7 @@ export default function MedicineDispensingWithAdmin() {
                     <p className="text-xs text-gray-500 mt-2">
                         Login is now handled by the server. The default password is{" "}
                       <span className="font-mono">admin123</span> and the default email is{" "}
-                      <span className="font-mono">Khanfaizan3234@gmail.com</span>
+                      <span className="font-mono">ramanoswal13@gmail.com</span>
                     </p>
                   </form>
                 ) : (
@@ -375,10 +407,9 @@ export default function MedicineDispensingWithAdmin() {
                           Registered Admin Email
                         </label>
                         <input
-                          value={adminEmail}
-                          onChange={(e) => setAdminEmail(e.target.value)}
-                          className="w-full rounded-md border px-3 py-2"
-                          placeholder="Enter admin email"
+                          value="ramanoswal13@gmail.com"
+                          readOnly
+                          className="w-full rounded-md border px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
                         />
                         <div className="flex items-center gap-4">
                           <PrimaryButton type="submit">Send recovery email</PrimaryButton>
@@ -515,6 +546,15 @@ export default function MedicineDispensingWithAdmin() {
                         </div>
                         <div className="flex flex-col gap-2">
                           <label className="text-xs text-gray-600">Image</label>
+
+                          {/* === FINAL UPDATED INPUT FOR GDRIVE === */}
+                          <input
+                            type="text"
+                            placeholder="Paste Google Drive Share Link"
+                            onBlur={(e) => handleGdriveUrl(kit.id, e.target.value)}
+                            className="w-full rounded-md border px-2 py-1 text-xs"
+                          />
+                          <span className="text-xs text-gray-500 text-center">or upload</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -523,7 +563,7 @@ export default function MedicineDispensingWithAdmin() {
                           />
                           <button
                             onClick={() => handleDeleteKit(kit.id)}
-                            className="text-sm px-3 py-1 rounded-md border text-red-600"
+                            className="text-sm px-3 py-1 rounded-md border text-red-600 mt-2"
                           >
                             Delete
                           </button>

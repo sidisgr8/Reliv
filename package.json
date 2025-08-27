@@ -15,6 +15,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "framer-motion": "^12.23.12",
+    "googleapis": "^158.0.0",
     "html2canvas": "^1.4.1",
     "i18next": "^25.3.6",
     "i18next-browser-languagedetector": "^8.2.0",

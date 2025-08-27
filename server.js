@@ -7,6 +7,7 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import PDFDocument from "pdfkit";
+import { google } from 'googleapis'; // Added for Google Drive API
 
 dotenv.config();
 
@@ -496,6 +497,54 @@ app.post("/api/check-login", async (req, res) => {
     console.error("Error in /api/check-login:", err);
     return res.status(500).json({ ok: false, message: "Login check failed." });
   }
+});
+
+// =================================================================
+// === NEW: GOOGLE DRIVE API ENDPOINT (using Service Account) ======
+// =================================================================
+app.get('/api/gdrive-image/:fileId', async (req, res) => {
+    const { fileId } = req.params;
+
+    try {
+        // Authenticate using the service account key file
+        const auth = new google.auth.GoogleAuth({
+            keyFile: SERVICE_ACCOUNT_KEY_PATH,
+            scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+        });
+
+        const drive = google.drive({ version: 'v3', auth });
+        
+        // Fetch the webContentLink for direct access
+        const file = await drive.files.get({
+            fileId: fileId,
+            fields: 'webContentLink, thumbnailLink',
+        });
+
+        const imageUrl = file.data.webContentLink || file.data.thumbnailLink;
+        
+        if (imageUrl) {
+            // The link provided is often a download link, remove the export part for embedding
+            const embeddableUrl = imageUrl.replace('&export=download', '');
+            res.status(200).json({ imageUrl: embeddableUrl });
+        } else {
+            res.status(404).json({ message: "Could not retrieve a public link for this file." });
+        }
+    } catch (error) {
+        console.error("Google Drive API Error:", error.message);
+        if (error.code === 'ENOENT') {
+             return res.status(500).json({ message: "Service account key not found on the server. Make sure 'service-account-key.json' is in the 'data' directory." });
+        }
+        if (error.errors) {
+            const apiError = error.errors[0];
+            if (apiError.reason === 'notFound') {
+                return res.status(404).json({ message: `File not found. Please check the link and sharing settings.` });
+            }
+             if (apiError.reason === 'forbidden') {
+                return res.status(403).json({ message: "Access denied. Please share the file with your service account's email address." });
+            }
+        }
+        res.status(500).json({ message: "An unknown error occurred while fetching the image from Google Drive." });
+    }
 });
 
 const PORT = process.env.PORT || 5000;
