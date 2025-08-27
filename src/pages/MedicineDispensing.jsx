@@ -177,6 +177,7 @@ export default function MedicineDispensingWithAdmin() {
   const [resetStage, setResetStage] = useState("request");
   const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [isRunMode, setIsRunMode] = useState(() => localStorage.getItem("paymentMode") === "run");
 
   useEffect(() => {
     if (!localStorage.getItem("adminPassword_v1")) localStorage.setItem("adminPassword_v1", "admin123");
@@ -279,6 +280,13 @@ export default function MedicineDispensingWithAdmin() {
   const handleSaveAdminEmail = () => {
     localStorage.setItem("adminEmail_v1", adminEmail || "");
     alert("Admin email saved.");
+  };
+
+  const handleModeToggle = () => {
+    const newMode = !isRunMode;
+    setIsRunMode(newMode);
+    localStorage.setItem("paymentMode", newMode ? "run" : "test");
+    alert(`Payment mode set to ${newMode ? "Run Mode" : "Test Mode"}.`);
   };
 
   // --- Admin kit operations ---
@@ -501,7 +509,20 @@ export default function MedicineDispensingWithAdmin() {
                       + New kit
                     </button>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-4">
+                    {/* --- Payment Mode Toggle --- */}
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-sm font-medium ${!isRunMode ? 'text-orange-500' : 'text-gray-500'}`}>Test Mode</span>
+                      <button
+                        onClick={handleModeToggle}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isRunMode ? 'bg-green-500' : 'bg-gray-300'}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isRunMode ? 'translate-x-6' : 'translate-x-1'}`}
+                        />
+                      </button>
+                      <span className={`text-sm font-medium ${isRunMode ? 'text-green-500' : 'text-gray-500'}`}>Run Mode</span>
+                    </div>
                     <PrimaryButton
                       onClick={() => {
                         setIsAuthenticated(false);

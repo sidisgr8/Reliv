@@ -11,6 +11,7 @@ const PaymentGate = () => {
   const location = useLocation();
   const { data: healthData } = useHealth();
   const { cart = [], totalPrice = 0, fromPaymentGate = false } = location.state || {};
+  const isRunMode = localStorage.getItem("paymentMode") === "run";
 
   // Determine the flow:
   // - If fromPaymentGate is true, a health checkup was done, so a report is needed.
@@ -25,12 +26,7 @@ const PaymentGate = () => {
   
   const title = needsReport ? "Your Report is Ready!" : "Complete Your Purchase";
 
-  const startPayment = async () => {
-    console.log("🛠️ Simulating payment...");
-    // Simulate payment success after 1 second
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("✅ Mock Payment Success");
-  
+  const handleSuccessfulPayment = async () => {
     // After payment, try to send a receipt if there are items in the cart or a report was generated
     if ((needsReport || cart.length > 0) && healthData.patient.email) {
       try {
@@ -57,6 +53,40 @@ const PaymentGate = () => {
       navigate("/report", { state: { cart } });
     } else {
       navigate("/order-success", { state: { cart } });
+    }
+  };
+
+  const startPayment = async () => {
+    if (isRunMode) {
+      // --- RUN MODE: Razorpay Integration ---
+      const options = {
+        key: "YOUR_RAZORPAY_KEY_ID", // Replace with your actual Razorpay Key ID
+        amount: paymentAmount * 100, // Amount in paise
+        currency: "INR",
+        name: "Reliv",
+        description: "Health Checkup & Medical Kits",
+        handler: function (response) {
+          console.log("Razorpay Response:", response);
+          alert("Payment Successful!");
+          handleSuccessfulPayment();
+        },
+        prefill: {
+          name: healthData.patient.name,
+          email: healthData.patient.email,
+          contact: healthData.patient.phone,
+        },
+        theme: {
+          color: "#E85C25",
+        },
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } else {
+      // --- TEST MODE: Simulation ---
+      console.log("🛠️ Simulating payment...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("✅ Mock Payment Success");
+      handleSuccessfulPayment();
     }
   };
 
