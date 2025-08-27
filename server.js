@@ -140,7 +140,7 @@ function generateReportPdf(data) {
       const buffers = [];
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => resolve(Buffer.concat(buffers)));
-  
+
       const { patient, vitals } = data;
       const computed = {
         bp: assessBP(vitals.systolic, vitals.diastolic),
@@ -149,7 +149,7 @@ function generateReportPdf(data) {
         temp: assessTempF(vitals.tempF),
         eyes: assessEyes(vitals.leftEye, vitals.rightEye),
       };
-  
+
       doc.rect(0, 0, 595.28, 150).fill("#F97316");
       doc.fontSize(32).font("Helvetica-Bold");
       const relWidth = doc.widthOfString("Rel");
@@ -195,14 +195,14 @@ function generateReportPdf(data) {
       doc.end();
     });
   }
-  
+
   function generateReceiptPdf(data) {
     return new Promise((resolve) => {
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const buffers = [];
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => resolve(Buffer.concat(buffers)));
-  
+
       const { patient, cart, totalPrice, needsReport } = data;
       doc.fontSize(25).text("Reliv Purchase Receipt", { align: "center" });
       doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString()}`, { align: "right" });
@@ -284,10 +284,14 @@ app.post("/send-report", async (req, res) => {
         contentType: "application/pdf",
       }],
     };
+    
+    // Send the email
     await transporter.sendMail(mailOptions);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log(`Sent report to ${to}. Preview URL: ${previewUrl}`);
-    res.json({ ok: true, previewUrl });
+    console.log(`Report sent to ${to}`);
+    
+    // *** FIX: Respond with success immediately after sending ***
+    res.json({ ok: true });
+
   } catch (err) {
     console.error("Error in /send-report:", err);
     res.status(500).json({ ok: false, message: "Failed to send report." });
