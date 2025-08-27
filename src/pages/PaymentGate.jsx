@@ -3,10 +3,13 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import TopEllipseBackground from "../components/TopEllipseBackground";
+import { useHealth } from "../context/HealthContext";
+
 
 const PaymentGate = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: healthData } = useHealth();
   const { cart = [], totalPrice = 0, fromPaymentGate = false } = location.state || {};
 
   // Determine the flow:
@@ -22,16 +25,38 @@ const PaymentGate = () => {
   
   const title = needsReport ? "Your Report is Ready!" : "Complete Your Purchase";
 
-  const startPayment = () => {
+  const startPayment = async () => {
     console.log("🛠️ Simulating payment...");
-    setTimeout(() => {
-      console.log("✅ Mock Payment Success");
-      if (needsReport) {
-        navigate("/report", { state: { cart } });
-      } else {
-        navigate("/order-success", { state: { cart } });
+    // Simulate payment success after 1 second
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log("✅ Mock Payment Success");
+  
+    // After payment, try to send a receipt if there are items in the cart
+    if (cart.length > 0 && healthData.patient.email) {
+      try {
+        console.log("Attempting to send receipt...");
+        await fetch('http://localhost:5000/api/send-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patient: healthData.patient,
+            cart,
+            totalPrice,
+          }),
+        });
+        console.log("Receipt email request sent.");
+      } catch (error) {
+        console.error("Failed to send receipt email:", error);
+        // Don't block the user flow if the email fails
       }
-    }, 1000);
+    }
+  
+    // Navigate to the next page
+    if (needsReport) {
+      navigate("/report", { state: { cart } });
+    } else {
+      navigate("/order-success", { state: { cart } });
+    }
   };
 
   return (

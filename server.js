@@ -283,6 +283,62 @@ function generateReportPdf(data) {
   });
 }
 
+// --- NEW: PDF Receipt Generation ---
+function generateReceiptPdf(data) {
+    return new Promise((resolve) => {
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const buffers = [];
+  
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+  
+      // --- PDF Content ---
+      const { patient, cart, totalPrice } = data;
+  
+      // Header
+      doc.fontSize(25).text("Reliv Purchase Receipt", { align: "center" });
+      doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString()}`, { align: "right" });
+      doc.moveDown();
+  
+      // Customer Details
+      doc.fontSize(14).text("Billed To:", { underline: true });
+      doc.text(patient.name || "N/A");
+      doc.text(patient.email || "N/A");
+      doc.moveDown(2);
+  
+      // Items Table
+      doc.font("Helvetica-Bold");
+      doc.text("Item", 50, 250);
+      doc.text("Quantity", 250, 250, { width: 100, align: "right" });
+      doc.text("Price", 350, 250, { width: 100, align: "right" });
+      doc.text("Total", 450, 250, { width: 100, align: "right" });
+      doc.moveTo(50, 270).lineTo(550, 270).stroke();
+      doc.font("Helvetica");
+  
+      let y = 280;
+      cart.forEach(item => {
+        doc.text(item.name, 50, y);
+        doc.text(item.quantity.toString(), 250, y, { width: 100, align: "right" });
+        doc.text(`₹${item.price}`, 350, y, { width: 100, align: "right" });
+        doc.text(`₹${item.price * item.quantity}`, 450, y, { width: 100, align: "right" });
+        y += 20;
+      });
+  
+      doc.moveTo(50, y).lineTo(550, y).stroke();
+      doc.moveDown();
+  
+      // Total
+      doc.font("Helvetica-Bold");
+      doc.text("Total Paid:", 350, y + 10, { width: 100, align: "right" });
+      doc.text(`₹${totalPrice}`, 450, y + 10, { width: 100, align: "right" });
+  
+      doc.end();
+    });
+  }
+
 // Ensure data directory
 async function ensureDataDir() {
   try {
@@ -357,6 +413,41 @@ app.post("/send-report", async (req, res) => {
     res.status(500).json({ ok: false, message: "Failed to send report." });
   }
 });
+
+// --- NEW: Send receipt email ---
+app.post("/api/send-receipt", async (req, res) => {
+    try {
+      const { patient, cart, totalPrice } = req.body;
+      if (!patient || !patient.email || !cart || !totalPrice) {
+        return res.status(400).json({ ok: false, message: "Missing required receipt data." });
+      }
+  
+      const pdfBuffer = await generateReceiptPdf({ patient, cart, totalPrice });
+  
+      const mailOptions = {
+        from: `Reliv Receipts <${process.env.GMAIL_USER}>`,
+        to: patient.email,
+        subject: `Your Receipt from Reliv`,
+        text: `Hi ${patient.name || "User"},\n\nPlease find your purchase receipt attached.\n\nBest,\nThe Reliv Team`,
+        attachments: [
+          {
+            filename: `Reliv-Receipt.pdf`,
+            content: pdfBuffer,
+            contentType: "application/pdf",
+          },
+        ],
+      };
+  
+      await transporter.sendMail(mailOptions);
+  
+      console.log(`Sent receipt to ${patient.email}`);
+      res.json({ ok: true });
+  
+    } catch (err) {
+      console.error("Error in /api/send-receipt:", err);
+      res.status(500).json({ ok: false, message: "Failed to send receipt." });
+    }
+  });
 
 // --- Send reset email ---
 app.post("/api/send-reset-email", async (req, res) => {
@@ -500,15 +591,9 @@ app.post("/api/check-login", async (req, res) => {
   }
 });
 
-// server.js
-
-// ... (previous code)
-
 // =================================================================
 // === NEW: GOOGLE DRIVE API ENDPOINT (using Service Account) ======
 // =================================================================
-
-
 app.get('/api/gdrive-image/:fileId', async (req, res) => {
     const { fileId } = req.params;
 
