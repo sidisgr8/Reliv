@@ -213,73 +213,106 @@ function generateReportPdf(data, ecoStats) {
 
 
 
+  // server.js
+
+// ... (previous code in server.js)
+
   function generateReceiptPdf(data, ecoStats) {
     return new Promise((resolve) => {
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const buffers = [];
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => resolve(Buffer.concat(buffers)));
-
+  
       const { patient, cart, totalPrice, needsReport } = data;
-      
-      // --- START: Updated Branding ---
+  
+      // --- STYLING CONSTANTS ---
+      const brandColor = "#F97316";
+      const headerBgColor = "#FFF1EA";
+      const textColor = "#1F2937";
+      const lightTextColor = "#6B7280";
+      const tableHeaderBg = "#F3F4F6";
+      const tableEvenRowBg = "#FFFFFF";
+      const tableOddRowBg = "#F9FAFB";
+  
+      // --- HEADER ---
+      doc.rect(0, 0, doc.page.width, 130).fill(headerBgColor);
       doc.fontSize(32).font("Helvetica-Bold");
       const relWidth = doc.widthOfString("Rel");
       const ivWidth = doc.widthOfString("iv");
       const totalLogoWidth = relWidth + ivWidth;
-      const logoStartX = (doc.page.width - totalLogoWidth) / 2;
-      doc.fillColor("#F97316").text("Rel", logoStartX, 50, { continued: true }).fillColor("#000000").text("iv");
-      doc.fontSize(18).fillColor("#000000").font("Helvetica").text("Purchase Receipt", 0, 90, { align: "center" });
-      // --- END: Updated Branding ---
-      
-      doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString()}`, { align: "right" });
-      doc.moveDown();
-      doc.fontSize(14).text("Billed To:", { underline: true });
-      doc.text(patient.name || "N/A");
-      doc.text(patient.email || "N/A");
-      doc.moveDown(2);
-      doc.font("Helvetica-Bold");
-      doc.text("Item", 50, 250);
-      doc.text("Quantity", 250, 250, { width: 100, align: "right" });
-      doc.text("Price", 350, 250, { width: 100, align: "right" });
-      doc.text("Total", 450, 250, { width: 100, align: "right" });
-      doc.moveTo(50, 270).lineTo(550, 270).stroke();
-      doc.font("Helvetica");
-      let y = 280;
+      const logoStartX = 50;
+      doc.fillColor(brandColor).text("Rel", logoStartX, 50, { continued: true }).fillColor(textColor).text("iv");
+      doc.fontSize(10).font("Helvetica").fillColor(lightTextColor).text("Your health, your way.", logoStartX, 85);
+  
+      doc.fontSize(18).font("Helvetica-Bold").fillColor(textColor).text("Purchase Receipt", 0, 65, { align: "right" });
+      doc.fontSize(10).font("Helvetica").fillColor(lightTextColor).text(`Date: ${new Date().toLocaleDateString()}`, 0, 90, { align: "right" });
+  
+      // --- BILLED TO ---
+      doc.fontSize(14).font("Helvetica-Bold").fillColor(textColor).text("Billed To:", 50, 160);
+      doc.font("Helvetica").fontSize(11).fillColor(lightTextColor);
+      doc.text(patient.name || "N/A", 50, 180);
+      doc.text(patient.email || "N/A", 50, 195);
+  
+      // --- TABLE ---
+      const tableTop = 250;
+      const itemX = 50;
+      const qtyX = 300;
+      const priceX = 370;
+      const totalX = 460;
+  
+      // Table Header
+      doc.font("Helvetica-Bold").fontSize(10);
+      doc.rect(50, tableTop, 500, 25).fill(tableHeaderBg);
+      doc.fillColor(textColor).text("ITEM", itemX + 10, tableTop + 8);
+      doc.text("QTY", qtyX, tableTop + 8, { width: 60, align: 'center' });
+      doc.text("PRICE", priceX, tableTop + 8, { width: 80, align: 'right' });
+      doc.text("TOTAL", totalX, tableTop + 8, { width: 90, align: 'right' });
+  
+      let y = tableTop + 25;
+      let i = 0;
+  
+      const drawRow = (item, isEven) => {
+        doc.rect(50, y, 500, 30).fill(isEven ? tableEvenRowBg : tableOddRowBg);
+        doc.font("Helvetica").fontSize(10).fillColor(textColor);
+        doc.text(item.name, itemX + 10, y + 10, { width: 230 });
+        doc.text(item.quantity.toString(), qtyX, y + 10, { width: 60, align: 'center' });
+        doc.text(`INR ${item.price.toFixed(2)}`, priceX, y + 10, { width: 80, align: 'right' });
+        doc.text(`INR ${(item.price * item.quantity).toFixed(2)}`, totalX, y + 10, { width: 90, align: 'right' });
+        y += 30;
+        i++;
+      };
+  
       if (needsReport) {
-        doc.text("Health Checkup Report", 50, y);
-        doc.text("1", 250, y, { width: 100, align: "right" });
-        doc.text("INR 500", 350, y, { width: 100, align: "right" });
-        doc.text("INR 500", 450, y, { width: 100, align: "right" });
-        y += 20;
+        drawRow({ name: "Health Checkup Report", quantity: 1, price: 500 }, i % 2 === 0);
       }
       if (cart) {
         cart.forEach(item => {
-          doc.text(item.name, 50, y);
-          doc.text(item.quantity.toString(), 250, y, { width: 100, align: "right" });
-          doc.text(`INR ${item.price}`, 350, y, { width: 100, align: "right" });
-          doc.text(`INR ${item.price * item.quantity}`, 450, y, { width: 100, align: "right" });
-          y += 20;
+          drawRow(item, i % 2 === 0);
         });
       }
-      doc.moveTo(50, y).lineTo(550, y).stroke();
-      doc.moveDown();
-      doc.font("Helvetica-Bold");
-      doc.text("Total Paid:", 350, y + 10, { width: 100, align: "right" });
-      doc.text(`INR ${totalPrice}`, 450, y + 10, { width: 100, align: "right" });
-      
+  
+      // --- TOTALS ---
+      const totalY = y + 20;
+      doc.font("Helvetica-Bold").fontSize(12).fillColor(textColor);
+      doc.text("Total Paid:", 350, totalY, { width: 100, align: "right" });
+      doc.fillColor(brandColor).text(`INR ${totalPrice.toFixed(2)}`, 450, totalY, { width: 100, align: "right" });
+  
+      // --- FOOTER ---
+      doc.fontSize(10).font("Helvetica-Bold").fillColor(textColor).text("Thank you for your purchase!", 50, doc.page.height - 100, { align: "center" });
+  
       if (ecoStats) {
-        doc.fontSize(8).fillColor("#9CA3AF").text(
-            `Fun Fact: Your digital choice saved ~${ecoStats.individual.water}L of water & ~${ecoStats.individual.co2}g of CO2. Collectively, our users have saved ~${ecoStats.total.water}L of water, ~${ecoStats.total.co2}g of CO2, and ~${ecoStats.total.paper} sheets of paper!`,
-            50, 770, { align: "center" } // <-- moved up from 780 to 770
+        doc.fontSize(8).fillColor(lightTextColor).text(
+          `Fun Fact: Your digital choice saved ~${ecoStats.individual.water}L of water & ~${ecoStats.individual.co2}g of CO2. Collectively, our users have saved ~${ecoStats.total.water}L of water, ~${ecoStats.total.co2}g of CO2, and ~${ecoStats.total.paper} sheets of paper!`,
+          50, doc.page.height - 80, { align: "center" }
         );
       }
-
+  
       doc.end();
     });
   }
 
-
+// ... (rest of the code in server.js)
 
 // --- Mail Transporter (Unchanged) ---
 const transporter = nodemailer.createTransport({
