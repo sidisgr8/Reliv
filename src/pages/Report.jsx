@@ -101,8 +101,23 @@ export default function Report() {
   const [sending, setSending] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showCleansing, setShowCleansing] = useState(false); // State to control animation
+  const [ecoStats, setEcoStats] = useState(null);
   const pdfRef = useRef();
   const stockUpdated = useRef(false);
+  
+  // Fetch eco stats on component mount
+  useEffect(() => {
+    const fetchEcoStats = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/eco-stats");
+        const stats = await res.json();
+        setEcoStats(stats);
+      } catch (error) {
+        console.error("Failed to fetch eco stats:", error);
+      }
+    };
+    fetchEcoStats();
+  }, []);
 
   // Stock reduction logic for any kits purchased with the report
   useEffect(() => {
@@ -356,6 +371,11 @@ export default function Report() {
                 treatment.
               </p>
               <p>&copy; {new Date().getFullYear()} Reliv. All rights reserved.</p>
+              {ecoStats && (
+                <p className="mt-2">
+                  Fun Fact: Your digital choice saved ~{ecoStats.individual.water}L of water & ~{ecoStats.individual.co2}g of CO2. Collectively, our users have saved ~{ecoStats.total.water}L of water, ~{ecoStats.total.co2}g of CO2, and ~{ecoStats.total.paper} sheets of paper!
+                </p>
+              )}
             </footer>
           </main>
         </div>

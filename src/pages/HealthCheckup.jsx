@@ -91,7 +91,8 @@ const BloodPressure = ({ onProceed }) => {
         style={{ clipPath: "ellipse(120% 100% at 50% -40%)" }}
       ></div>
 
-      <div className="relative z-10 h-full flex flex-col p-5">
+      {/* Add scrollable container */}
+      <div className="relative z-10 h-full flex flex-col p-5 overflow-y-auto" style={{ maxHeight: "100vh" }}>
         {/* Top Bar */}
         <header className="flex-shrink-0 flex items-center">
           <button

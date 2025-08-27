@@ -141,7 +141,7 @@ function assessEyes(left, right) {
 }
 
 // --- PDF Generation Logic (Unchanged) ---
-function generateReportPdf(data) {
+function generateReportPdf(data, ecoStats) {
     return new Promise((resolve) => {
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const buffers = [];
@@ -199,11 +199,17 @@ function generateReportPdf(data) {
       doc.fontSize(10).fillColor("#000000").font("Helvetica").text(computed.eyes.note, 60, yPos + 55, { width: 475 });
       doc.fontSize(8).fillColor("#9CA3AF").text("This report is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.", 50, 750, { align: "center" });
       doc.text(`© ${new Date().getFullYear()} Reliv. All rights reserved.`, { align: "center" });
+      if (ecoStats) {
+        doc.fontSize(8).text(
+            `Fun Fact: Your digital choice saved ~${ecoStats.individual.water}L of water & ~${ecoStats.individual.co2}g of CO2. Collectively, our users have saved ~${ecoStats.total.water}L of water, ~${ecoStats.total.co2}g of CO2, and ~${ecoStats.total.paper} sheets of paper!`,
+            50, 770, { align: "center" } // <-- moved up from 780 to 770
+        );
+      }
       doc.end();
     });
   }
 
-  function generateReceiptPdf(data) {
+  function generateReceiptPdf(data, ecoStats) {
     return new Promise((resolve) => {
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const buffers = [];
@@ -247,6 +253,14 @@ function generateReportPdf(data) {
       doc.font("Helvetica-Bold");
       doc.text("Total Paid:", 350, y + 10, { width: 100, align: "right" });
       doc.text(`₹${totalPrice}`, 450, y + 10, { width: 100, align: "right" });
+      
+      if (ecoStats) {
+        doc.fontSize(8).fillColor("#9CA3AF").text(
+            `Fun Fact: Your digital choice saved ~${ecoStats.individual.water}L of water & ~${ecoStats.individual.co2}g of CO2. Collectively, our users have saved ~${ecoStats.total.water}L of water, ~${ecoStats.total.co2}g of CO2, and ~${ecoStats.total.paper} sheets of paper!`,
+            50, 770, { align: "center" } // <-- moved up from 780 to 770
+        );
+      }
+
       doc.end();
     });
   }
@@ -283,6 +297,40 @@ app.post("/api/create-order", async (req, res) => {
   }
 });
 
+// --- NEW: Eco Stats Endpoint ---
+app.get("/api/eco-stats", async (req, res) => {
+  try {
+    const reportsCollection = db.collection('reports');
+    const receiptsCollection = db.collection('receipts');
+    
+    const reportCount = await reportsCollection.countDocuments();
+    const receiptCount = await receiptsCollection.countDocuments();
+    
+    const totalDocuments = reportCount + receiptCount;
+    
+    // Constants for savings per document (2 pages)
+    const PAPER_SAVED_PER_DOC = 2; // sheets
+    const WATER_SAVED_PER_DOC = 20; // liters
+    const CO2_SAVED_PER_DOC = 18; // grams
+
+    res.json({
+      total: {
+        paper: totalDocuments * PAPER_SAVED_PER_DOC,
+        water: totalDocuments * WATER_SAVED_PER_DOC,
+        co2: totalDocuments * CO2_SAVED_PER_DOC
+      },
+      individual: {
+        paper: PAPER_SAVED_PER_DOC,
+        water: WATER_SAVED_PER_DOC,
+        co2: CO2_SAVED_PER_DOC
+      }
+    });
+  } catch (err) {
+    console.error("Error in /api/eco-stats:", err);
+    res.status(500).json({ error: "Failed to fetch eco stats." });
+  }
+});
+
 
 // --- UPDATED API Endpoints ---
 
@@ -298,8 +346,12 @@ app.post("/send-report", async (req, res) => {
     const reportsCollection = db.collection('reports');
     await reportsCollection.insertOne({ ...healthData, createdAt: new Date() });
     console.log("📈 Report data saved to MongoDB.");
+    
+    // Fetch eco stats
+    const ecoStatsResponse = await fetch(`http://localhost:${PORT}/api/eco-stats`);
+    const ecoStats = await ecoStatsResponse.json();
 
-    const pdfBuffer = await generateReportPdf(healthData);
+    const pdfBuffer = await generateReportPdf(healthData, ecoStats);
     const mailOptions = {
       from: `Reliv Reports <${process.env.GMAIL_USER}>`,
       to,
@@ -341,8 +393,12 @@ app.post("/api/send-receipt", async (req, res) => {
       const receiptsCollection = db.collection('receipts');
       await receiptsCollection.insertOne({ patient, cart, totalPrice, needsReport, createdAt: new Date() });
       console.log("🧾 Receipt data saved to MongoDB.");
+      
+      // Fetch eco stats
+      const ecoStatsResponse = await fetch(`http://localhost:${PORT}/api/eco-stats`);
+      const ecoStats = await ecoStatsResponse.json();
 
-      const pdfBuffer = await generateReceiptPdf({ patient, cart, totalPrice, needsReport });
+      const pdfBuffer = await generateReceiptPdf({ patient, cart, totalPrice, needsReport }, ecoStats);
       const mailOptions = {
         from: `Reliv Receipts <${process.env.GMAIL_USER}>`,
         to: patient.email,
