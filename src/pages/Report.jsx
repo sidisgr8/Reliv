@@ -333,15 +333,16 @@ export default function Report() {
           setHistory(historyData);
 
           // Save current report and get ID
-          const reportRes = await fetch("http://localhost:5000/send-report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: patient.email,
-              name: patient.name,
-              healthData: data,
-            }),
-          });
+          const reportRes = await fetch(
+            "http://localhost:5000/api/save-report",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                healthData: data,
+              }),
+            }
+          );
           const reportData = await reportRes.json();
           if (reportData.ok) {
             setReportId(reportData.reportId);
