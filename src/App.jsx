@@ -14,6 +14,7 @@ import BodyTemperature from "./pages/BodyTemperature.jsx";
 import Report from "./pages/Report.jsx";
 import Checkout from "./pages/Checkout.jsx";
 import OrderSuccess from "./pages/OrderSuccess.jsx";
+import BodyComposition from "./pages/BodyComposition.jsx"; // Import the new component
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
       <Route path="/oxygen-pulse" element={<OxygenPulse />} />
       <Route path="/body-temperature" element={<BodyTemperature />} />
       <Route path="/eyesight" element={<EyeSight />} />
+      <Route path="/body-composition" element={<BodyComposition />} /> {/* Add the new route */}
       <Route path="/report" element={<Report />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/order-success" element={<OrderSuccess />} />

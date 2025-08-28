@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // <-- Import useNavigate
+import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
@@ -62,16 +62,15 @@ const EyeSightSplash = ({ onComplete }) => {
 const EyeSightTest = () => {
   const [leftEyeLine, setLeftEyeLine] = useState("");
   const [rightEyeLine, setRightEyeLine] = useState("");
-  const navigate = useNavigate(); // <-- Add navigate hook
+  const navigate = useNavigate();
   const { update } = useHealth();
 
-const handleSubmit = () => {
-  update({
-    vitals: { leftEye: leftEyeLine, rightEye: rightEyeLine },
-  });
-  navigate("/payment");
-};
-
+  const handleSubmit = () => {
+    update({
+      vitals: { leftEye: leftEyeLine, rightEye: rightEyeLine },
+    });
+    navigate("/body-composition");
+  };
 
   return (
     <div className="relative w-full min-h-screen bg-white font-sans overflow-hidden flex flex-col">
@@ -136,20 +135,22 @@ const handleSubmit = () => {
               aria-label="Right eye line"
             />
 
-             <PrimaryButton className="w-full" onClick={handleSubmit}>
-      Submit →
-    </PrimaryButton>
+            <PrimaryButton className="w-full" onClick={handleSubmit}>
+              Procced →
+            </PrimaryButton>
           </div>
         </main>
 
         {/* Footer pagination */}
         <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4">
           <div className="flex items-center space-x-2">
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
             <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
-            <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
-            <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
-            <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
-            <span className="text-xs text-gray-500 ml-2">4/4 complete</span>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <span className="text-xs text-gray-500 ml-2">4/5 complete</span>
           </div>
         </footer>
       </div>
@@ -173,4 +174,4 @@ export default function EyeSight() {
     default:
       return <EyeSightSplash onComplete={showTest} />;
   }
-}
+};

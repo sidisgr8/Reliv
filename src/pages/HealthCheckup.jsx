@@ -158,7 +158,8 @@ const BloodPressure = ({ onProceed }) => {
             <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
             <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
             <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-            <span className="text-xs text-gray-500 ml-2">1/4 complete</span>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <span className="text-xs text-gray-500 ml-2">1/5 complete</span>
           </div>
 
           <PrimaryButton

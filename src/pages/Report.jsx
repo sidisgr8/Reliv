@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import UVCleansingAnimation from "../components/UVCleansingAnimation";
-import { Line } from "react-chartjs-2";
+import { Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,7 +14,9 @@ import {
   Title,
   Tooltip,
   Legend,
+  ArcElement,
 } from "chart.js";
+import * as bodyComposition from "../utils/bodyComposition";
 
 ChartJS.register(
   CategoryScale,
@@ -23,7 +25,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ArcElement
 );
 
 // --- Helper Functions (assessBP, assessSpO2, etc. - unchanged) ---
@@ -54,7 +57,10 @@ function assessSpO2(spo2) {
   const v = Number(spo2);
   if (!v) return { label: "—", advice: "No SpO₂ value provided." };
   if (v >= 95)
-    return { label: "Normal", advice: "Oxygen saturation is within normal range." };
+    return {
+      label: "Normal",
+      advice: "Oxygen saturation is within normal range.",
+    };
   if (v >= 90)
     return {
       label: "Borderline",
@@ -71,7 +77,10 @@ function assessPulse(pulse) {
       advice: "Resting heart rate is within normal range.",
     };
   if (v < 60)
-    return { label: "Low", advice: "Could be normal for athletes; else, monitor." };
+    return {
+      label: "Low",
+      advice: "Could be normal for athletes; else, monitor.",
+    };
   return {
     label: "High",
     advice: "Tachycardia; consider rest and consult if persistent.",
@@ -113,60 +122,121 @@ function assessEyes(left, right) {
 }
 
 const VitalsHistoryChart = ({ history, currentVitals }) => {
-    const combinedHistory = [...history, { ...currentVitals, createdAt: new Date() }]
-        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    const chartData = {
-        labels: combinedHistory.map(h => new Date(h.createdAt).toLocaleDateString()),
-        datasets: [
-            {
-                label: 'Systolic BP',
-                data: combinedHistory.map(h => h.vitals.systolic),
-                borderColor: 'rgb(255, 99, 132)',
-                backgroundColor: 'rgba(255, 99, 132, 0.5)',
-            },
-            {
-                label: 'Diastolic BP',
-                data: combinedHistory.map(h => h.vitals.diastolic),
-                borderColor: 'rgb(54, 162, 235)',
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            },
-            {
-                label: 'Pulse',
-                data: combinedHistory.map(h => h.vitals.pulse),
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.5)',
-            },
-            {
-                label: 'SpO2',
-                data: combinedHistory.map(h => h.vitals.spo2),
-                borderColor: 'rgb(153, 102, 255)',
-                backgroundColor: 'rgba(153, 102, 255, 0.5)',
-            },
-            {
-                label: 'Temperature (°F)',
-                data: combinedHistory.map(h => h.vitals.tempF),
-                borderColor: 'rgb(255, 159, 64)',
-                backgroundColor: 'rgba(255, 159, 64, 0.5)',
-            },
-        ],
-    };
+  const combinedHistory = [
+    ...history,
+    { ...currentVitals, createdAt: new Date() },
+  ]
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(-10); // Limit to last 10 entries for clarity
 
-    const options = {
-        responsive: true,
-        plugins: {
-            title: {
-                display: true,
-                text: 'Vitals History'
-            }
+  const chartData = {
+    labels: combinedHistory.map((h) =>
+      new Date(h.createdAt).toLocaleDateString()
+    ),
+    datasets: [
+      {
+        label: "Systolic BP",
+        data: combinedHistory.map((h) => h.vitals.systolic),
+        borderColor: "rgb(255, 99, 132)",
+        backgroundColor: "rgba(255, 99, 132, 0.5)",
+        yAxisID: "y",
+      },
+      {
+        label: "Diastolic BP",
+        data: combinedHistory.map((h) => h.vitals.diastolic),
+        borderColor: "rgb(54, 162, 235)",
+        backgroundColor: "rgba(54, 162, 235, 0.5)",
+        yAxisID: "y",
+      },
+      {
+        label: "Pulse",
+        data: combinedHistory.map((h) => h.vitals.pulse),
+        borderColor: "rgb(75, 192, 192)",
+        backgroundColor: "rgba(75, 192, 192, 0.5)",
+        yAxisID: "y",
+      },
+      {
+        label: "SpO2",
+        data: combinedHistory.map((h) => h.vitals.spo2),
+        borderColor: "rgb(153, 102, 255)",
+        backgroundColor: "rgba(153, 102, 255, 0.5)",
+        yAxisID: "y1",
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: "Vitals History",
+      },
+    },
+    scales: {
+      y: {
+        type: "linear",
+        display: true,
+        position: "left",
+      },
+      y1: {
+        type: "linear",
+        display: true,
+        position: "right",
+        grid: {
+          drawOnChartArea: false,
         },
-        animation: {
-            duration: 0 // Disable animation
-        }
-    };
+      },
+    },
+    animation: {
+      duration: 0,
+    },
+  };
 
-    return <Line options={options} data={chartData} />;
+  return <Line options={options} data={chartData} />;
 };
 
+const BodyCompositionChart = ({ compositionData }) => {
+  const data = {
+    labels: ["Fat", "Muscle", "Bone", "Water"],
+    datasets: [
+      {
+        label: "Body Composition %",
+        data: [
+          compositionData.fat_percent,
+          compositionData.muscle_percent,
+          compositionData.bone_percent,
+          compositionData.water_percent,
+        ],
+        backgroundColor: [
+          "rgba(255, 99, 132, 0.2)",
+          "rgba(54, 162, 235, 0.2)",
+          "rgba(255, 206, 86, 0.2)",
+          "rgba(75, 192, 192, 0.2)",
+        ],
+        borderColor: [
+          "rgba(255, 99, 132, 1)",
+          "rgba(54, 162, 235, 1)",
+          "rgba(255, 206, 86, 1)",
+          "rgba(75, 192, 192, 1)",
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    plugins: {
+      title: {
+        display: true,
+        text: "Body Composition Breakdown",
+      },
+    },
+  };
+
+  return <Doughnut data={data} options={options} />;
+};
 
 // --- Main Report Component ---
 
@@ -182,44 +252,120 @@ export default function Report() {
   const pdfRef = useRef();
   const stockUpdated = useRef(false);
   const [history, setHistory] = useState([]);
-  const [qrCode, setQrCode] = useState('');
+  const [qrCode, setQrCode] = useState("");
   const [reportId, setReportId] = useState(null);
-  
-  
+
+  const bodyCompositionData = useMemo(() => {
+    if (!vitals.weight || !patient.age || !patient.gender) {
+      return null;
+    }
+    const sex = patient.gender.toLowerCase() === "male" ? 1 : 0;
+    const { weight, impedance } = vitals;
+    const { age } = patient;
+    const height = 170; // Assuming a default height, you might want to ask for this too
+
+    const fat_percent = bodyComposition.calc_fat_percent(
+      weight,
+      height,
+      sex,
+      age,
+      impedance
+    );
+    const muscle_percent = bodyComposition.calc_muscle_percent(
+      weight,
+      height,
+      sex,
+      age,
+      impedance
+    );
+    const water_percent = bodyComposition.calc_water_percent(
+      weight,
+      height,
+      sex,
+      age,
+      impedance
+    );
+    const bone_mass = bodyComposition.calc_bone_mass(
+      weight,
+      height,
+      sex,
+      age,
+      impedance
+    );
+    const bone_percent = bodyComposition.calc_bone_percent(weight, bone_mass);
+
+    return {
+      bmi: bodyComposition.calc_bmi(weight, height),
+      fat_percent,
+      fat_mass: bodyComposition.calc_fat_mass(weight, fat_percent),
+      muscle_percent,
+      muscle_mass: bodyComposition.calc_muscle_mass(weight, muscle_percent),
+      water_percent,
+      water_mass: bodyComposition.calc_water_mass(weight, water_percent),
+      bone_mass,
+      bone_percent,
+      protein_percent: bodyComposition.calc_protein_percent(muscle_percent),
+      visceral_fat_level: bodyComposition.calc_visceral_fat_level(
+        weight,
+        height,
+        sex,
+        age,
+        impedance
+      ),
+      bmr: bodyComposition.calc_bmr(weight, height, sex, age),
+      metabolic_age: bodyComposition.calc_metabolic_age(
+        bodyComposition.calc_bmr(weight, height, sex, age),
+        age,
+        sex
+      ),
+    };
+  }, [vitals, patient]);
+
   useEffect(() => {
     const fetchHistoryAndGenerateQR = async () => {
-        if (patient.email) {
-            try {
-                // Fetch history
-                const historyRes = await fetch(`http://localhost:5000/api/reports/history/${patient.email}`);
-                const historyData = await historyRes.json();
-                setHistory(historyData);
+      if (patient.email) {
+        try {
+          // Fetch history
+          const historyRes = await fetch(
+            `http://localhost:5000/api/reports/history/${patient.email}`
+          );
+          const historyData = await historyRes.json();
+          setHistory(historyData);
 
-                // Save current report and get ID
-                const reportRes = await fetch("http://localhost:5000/send-report", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ to: patient.email, name: patient.name, healthData: data }),
-                });
-                const reportData = await reportRes.json();
-                if (reportData.ok) {
-                    setReportId(reportData.reportId);
-                    // Generate QR code
-                    const qrRes = await fetch('http://localhost:5000/api/qr-code', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: `http://localhost:5000/api/report/${reportData.reportId}/download` }),
-                    });
-                    const qrData = await qrRes.json();
-                    setQrCode(qrData.qrCode);
-                }
-            } catch (error) {
-                console.error("Failed to fetch report history or generate QR code:", error);
-            }
+          // Save current report and get ID
+          const reportRes = await fetch("http://localhost:5000/send-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: patient.email,
+              name: patient.name,
+              healthData: data,
+            }),
+          });
+          const reportData = await reportRes.json();
+          if (reportData.ok) {
+            setReportId(reportData.reportId);
+            // Generate QR code
+            const qrRes = await fetch("http://localhost:5000/api/qr-code", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                url: `http://localhost:5000/api/report/${reportData.reportId}/download`,
+              }),
+            });
+            const qrData = await qrRes.json();
+            setQrCode(qrData.qrCode);
+          }
+        } catch (error) {
+          console.error(
+            "Failed to fetch report history or generate QR code:",
+            error
+          );
         }
+      }
     };
     fetchHistoryAndGenerateQR();
-}, [patient.email]);
+  }, [patient.email, data]);
 
   // Fetch eco stats on component mount
   useEffect(() => {
@@ -325,11 +471,11 @@ export default function Report() {
     const content = pdfRef.current;
     content.classList.add("pdf-render");
     const canvas = await html2canvas(content, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        windowWidth: content.scrollWidth,
-        windowHeight: content.scrollHeight,
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      windowWidth: content.scrollWidth,
+      windowHeight: content.scrollHeight,
     });
     content.classList.remove("pdf-render");
     const imgData = canvas.toDataURL("image/png");
@@ -338,7 +484,12 @@ export default function Report() {
       const res = await fetch("http://localhost:5000/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: patient.email, name: patient.name, healthData: data, reportImage: imgData }),
+        body: JSON.stringify({
+          to: patient.email,
+          name: patient.name,
+          healthData: data,
+          reportImage: imgData,
+        }),
       });
       const result = await res.json();
       if (result.ok) {
@@ -362,18 +513,26 @@ export default function Report() {
     }
 
     const textToRead = `
-      Health Screening Report for ${patient.name || 'the user'}.
+      Health Screening Report for ${patient.name || "the user"}.
       Patient Information:
-      Name: ${patient.name || 'Not provided'}.
-      Age: ${patient.age || 'Not provided'}.
-      Gender: ${patient.gender || 'Not provided'}.
-      Phone: ${patient.phone || 'Not provided'}.
-      Email: ${patient.email || 'Not provided'}.
+      Name: ${patient.name || "Not provided"}.
+      Age: ${patient.age || "Not provided"}.
+      Gender: ${patient.gender || "Not provided"}.
+      Phone: ${patient.phone || "Not provided"}.
+      Email: ${patient.email || "Not provided"}.
       Health Vitals:
-      Blood Pressure: ${vitals.systolic || 'none'} over ${vitals.diastolic || 'none'}. Status: ${computed.bp.label}. Advice: ${computed.bp.advice}.
-      Oxygen Saturation: ${vitals.spo2 || 'none'} percent. Status: ${computed.spo2.label}. Advice: ${computed.spo2.advice}.
-      Pulse Rate: ${vitals.pulse || 'none'} B P M. Status: ${computed.pulse.label}. Advice: ${computed.pulse.advice}.
-      Body Temperature: ${vitals.tempF || 'none'} degrees Fahrenheit. Status: ${computed.temp.label}. Advice: ${computed.temp.advice}.
+      Blood Pressure: ${vitals.systolic || "none"} over ${
+      vitals.diastolic || "none"
+    }. Status: ${computed.bp.label}. Advice: ${computed.bp.advice}.
+      Oxygen Saturation: ${vitals.spo2 || "none"} percent. Status: ${
+      computed.spo2.label
+    }. Advice: ${computed.spo2.advice}.
+      Pulse Rate: ${vitals.pulse || "none"} B P M. Status: ${
+      computed.pulse.label
+    }. Advice: ${computed.pulse.advice}.
+      Body Temperature: ${vitals.tempF || "none"} degrees Fahrenheit. Status: ${
+      computed.temp.label
+    }. Advice: ${computed.temp.advice}.
       Visual Acuity: ${computed.eyes.summary}. Note: ${computed.eyes.note}.
       This report is for informational purposes only.
     `;
@@ -398,7 +557,10 @@ export default function Report() {
   return (
     <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        <div ref={pdfRef} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div
+          ref={pdfRef}
+          className="bg-white rounded-2xl shadow-lg overflow-hidden"
+        >
           <header className="bg-orange-500 text-white p-8 relative overflow-hidden">
             <div
               className="absolute top-0 left-0 w-full h-full bg-orange-50"
@@ -492,23 +654,93 @@ export default function Report() {
                 />
               </div>
             </section>
-            {history.length > 0 && (
-                <section className="mt-8">
-                    <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
-                        Vitals History
-                    </h3>
-                    <VitalsHistoryChart history={history} currentVitals={data} />
-                </section>
+            {bodyCompositionData && (
+              <section className="mt-8">
+                <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                  Body Composition
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <VitalCard
+                    label="BMI"
+                    value={bodyCompositionData.bmi.toFixed(1)}
+                    status="Body Mass Index"
+                    note="A measure of body fat based on height and weight."
+                  />
+                  <VitalCard
+                    label="Body Fat"
+                    value={`${bodyCompositionData.fat_percent.toFixed(1)}%`}
+                    status="Fat Percentage"
+                    note={`${bodyCompositionData.fat_mass.toFixed(1)} kg`}
+                  />
+                  <VitalCard
+                    label="Muscle"
+                    value={`${bodyCompositionData.muscle_percent.toFixed(1)}%`}
+                    status="Muscle Percentage"
+                    note={`${bodyCompositionData.muscle_mass.toFixed(1)} kg`}
+                  />
+                  <VitalCard
+                    label="Water"
+                    value={`${bodyCompositionData.water_percent.toFixed(1)}%`}
+                    status="Water Percentage"
+                    note={`${bodyCompositionData.water_mass.toFixed(1)} kg`}
+                  />
+                  <VitalCard
+                    label="Bone Mass"
+                    value={`${bodyCompositionData.bone_mass.toFixed(1)} kg`}
+                    status="Bone Mass"
+                    note={`${bodyCompositionData.bone_percent.toFixed(1)} %`}
+                  />
+                  <VitalCard
+                    label="Protein"
+                    value={`${bodyCompositionData.protein_percent.toFixed(
+                      1
+                    )}%`}
+                    status="Protein Percentage"
+                    note="Essential for muscle repair and growth."
+                  />
+                  <VitalCard
+                    label="Visceral Fat"
+                    value={bodyCompositionData.visceral_fat_level}
+                    status="Level"
+                    note="Fat surrounding your organs."
+                  />
+                  <VitalCard
+                    label="BMR"
+                    value={`${bodyCompositionData.bmr.toFixed(0)} kcal`}
+                    status="Basal Metabolic Rate"
+                    note="Calories your body burns at rest."
+                  />
+                  <VitalCard
+                    label="Metabolic Age"
+                    value={bodyCompositionData.metabolic_age}
+                    status="Years"
+                    note="Your body's age based on metabolism."
+                  />
+                </div>
+              </section>
             )}
-             {qrCode && (
-                <section className="mt-8 text-center">
-                    <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
-                        Download Your Report
-                    </h3>
-                    <div className="flex justify-center">
-                        <img src={qrCode} alt="QR Code to download report" />
-                    </div>
-                </section>
+            {history.length > 0 && (
+              <section className="mt-8">
+                <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                  Vitals History
+                </h3>
+                <VitalsHistoryChart history={history} currentVitals={data} />
+              </section>
+            )}
+            {bodyCompositionData && (
+              <section className="mt-8">
+                <BodyCompositionChart compositionData={bodyCompositionData} />
+              </section>
+            )}
+            {qrCode && (
+              <section className="mt-8 text-center">
+                <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                  Download Your Report
+                </h3>
+                <div className="flex justify-center">
+                  <img src={qrCode} alt="QR Code to download report" />
+                </div>
+              </section>
             )}
             <footer className="text-center text-xs text-gray-400 mt-12 pt-4 border-t">
               <p>
@@ -516,10 +748,17 @@ export default function Report() {
                 substitute for professional medical advice, diagnosis, or
                 treatment.
               </p>
-              <p>&copy; {new Date().getFullYear()} Reliv. All rights reserved.</p>
+              <p>
+                &copy; {new Date().getFullYear()} Reliv. All rights reserved.
+              </p>
               {ecoStats && (
                 <p className="mt-2">
-                  Fun Fact: Your digital choice saved ~{ecoStats.individual.water}L of water & ~{ecoStats.individual.co2}g of CO2. Collectively, our users have saved ~{ecoStats.total.water}L of water, ~{ecoStats.total.co2}g of CO2, and ~{ecoStats.total.paper} sheets of paper!
+                  Fun Fact: Your digital choice saved ~
+                  {ecoStats.individual.water}L of water & ~
+                  {ecoStats.individual.co2}g of CO2. Collectively, our users
+                  have saved ~{ecoStats.total.water}L of water, ~
+                  {ecoStats.total.co2}g of CO2, and ~{ecoStats.total.paper}{" "}
+                  sheets of paper!
                 </p>
               )}
             </footer>
@@ -527,7 +766,7 @@ export default function Report() {
         </div>
 
         <div className="flex flex-wrap gap-4 justify-center mt-8">
-           <button
+          <button
             onClick={handleReadAloud}
             className="bg-blue-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105"
           >
@@ -556,7 +795,9 @@ export default function Report() {
       </div>
 
       {/* Conditionally render the animation overlay */}
-      {showCleansing && <UVCleansingAnimation onComplete={() => navigate('/')} />}
+      {showCleansing && (
+        <UVCleansingAnimation onComplete={() => navigate("/")} />
+      )}
     </div>
   );
 }
