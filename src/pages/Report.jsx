@@ -340,6 +340,7 @@ export default function Report() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 healthData: data,
+                bodyCompositionData: bodyCompositionData,
               }),
             }
           );
@@ -366,7 +367,7 @@ export default function Report() {
       }
     };
     fetchHistoryAndGenerateQR();
-  }, [patient.email, data]);
+  }, [patient.email, data, bodyCompositionData]);
 
   // Fetch eco stats on component mount
   useEffect(() => {
@@ -440,23 +441,37 @@ export default function Report() {
     content.classList.remove("pdf-render");
 
     const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
+    const pdf = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
     const pageHeight = pdf.internal.pageSize.getHeight();
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    const canvasAspectRatio = canvasWidth / canvasHeight;
+    const pdfAspectRatio = pdfWidth / pageHeight;
 
-    let heightLeft = pdfHeight;
-    let position = 0;
+    let finalCanvasHeight, finalCanvasWidth;
 
-    pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-    heightLeft -= pageHeight;
+    if (canvasAspectRatio > pdfAspectRatio) {
+      finalCanvasWidth = pdfWidth;
+      finalCanvasHeight = pdfWidth / canvasAspectRatio;
+    } else {
+      finalCanvasHeight = pageHeight;
+      finalCanvasWidth = pageHeight * canvasAspectRatio;
+    }
 
-    while (heightLeft > 0) {
-      position = heightLeft - pdfHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
+    const totalPages = Math.ceil(canvasHeight / (pageHeight * (canvasWidth / finalCanvasWidth)));
+    
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) {
+        pdf.addPage();
+      }
+      const y = - (i * pageHeight) * (canvasWidth / finalCanvasWidth);
+      pdf.addImage(imgData, "PNG", 0, y, finalCanvasWidth, canvasHeight * (finalCanvasWidth/canvasWidth) );
     }
 
     return pdf;

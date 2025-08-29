@@ -10,6 +10,7 @@ const BodyComposition = () => {
   const [weight, setWeight] = useState("");
   const [impedance, setImpedance] = useState("");
   const [height, setHeight] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { update } = useHealth();
 
@@ -17,13 +18,16 @@ const BodyComposition = () => {
     try {
       const response = await fetch('http://localhost:5000/api/get-device-data');
       const data = await response.json();
-      if (data.weight && data.impedance) {
+      if (data && data.weight && data.impedance) {
         setWeight(data.weight);
         setImpedance(data.impedance);
+        setError("");
+      } else {
+        setError("Device not found or readings not taken.");
       }
     } catch (error) {
       console.error('Failed to fetch data from device:', error);
-      alert('Could not fetch data from the device. Please ensure the Python script is running and the device is connected.');
+      setError('Could not fetch data from the device. Please ensure the Python script is running and the device is connected.');
     }
   };
 
@@ -59,6 +63,7 @@ const BodyComposition = () => {
               <h3 className="text-lg font-semibold text-gray-700 mb-2 text-center">
                 Enter your details
               </h3>
+              {error && <p className="text-red-500 text-center text-sm mb-4">{error}</p>}
               <div className="flex flex-col gap-4">
                 <PrimaryButton className="w-full" onClick={handleFetchFromDevice}>
                   Fetch from Device

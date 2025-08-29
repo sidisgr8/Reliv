@@ -11,7 +11,7 @@ import { google } from "googleapis";
 import { MongoClient, ObjectId } from "mongodb"; // Import MongoClient and ObjectId
 import Razorpay from "razorpay"; // Import Razorpay
 import QRCode from "qrcode";
-import fetch from 'node-fetch'; // Add this line
+import fetch from 'node-fetch';
 
 
 dotenv.config();
@@ -149,15 +149,16 @@ function assessEyes(left, right) {
 
 const generatePdfFromImage = (imageBase64) => {
   return new Promise((resolve) => {
-    const doc = new PDFDocument({ size: "A4", margin: 0 });
+    const doc = new PDFDocument({ size: 'a4', layout: 'portrait', margin: 0 });
     const buffers = [];
     doc.on("data", buffers.push.bind(buffers));
     doc.on("end", () => resolve(Buffer.concat(buffers)));
 
     // The image is already a full A4 render, so just place it on the page
     doc.image(imageBase64, 0, 0, {
-      width: doc.page.width,
-      height: doc.page.height,
+      fit: [doc.page.width, doc.page.height],
+      align: 'center',
+      valign: 'center'
     });
 
     doc.end();
@@ -590,7 +591,7 @@ app.get("/api/eco-stats", async (req, res) => {
 // NEW: Save report to database without sending email
 app.post("/api/save-report", async (req, res) => {
   try {
-    const { healthData } = req.body;
+    const { healthData, bodyCompositionData } = req.body;
     if (!healthData) {
       return res
         .status(400)
@@ -599,6 +600,7 @@ app.post("/api/save-report", async (req, res) => {
     const reportsCollection = db.collection("reports");
     const result = await reportsCollection.insertOne({
       ...healthData,
+      bodyComposition: bodyCompositionData,
       createdAt: new Date(),
     });
     console.log("📈 Report data saved to MongoDB.");
