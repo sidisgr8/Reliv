@@ -110,3 +110,67 @@ export function calc_metabolic_age(bmr, age, sex) {
     const metabolic_age = age + (bmr - ref_bmr) / 38 - 3;
     return Math.max(16, Math.min(Math.round(metabolic_age), 100));
 }
+
+// New functions translated from main_code.py
+export function calc_subcutaneous_fat_percent(fat_percent) {
+    return round5(0.99 * fat_percent);
+}
+
+export function calc_subcutaneous_fat_mass(weight, subcutaneous_fat_percent) {
+    return weight > 0 ? round5(weight * subcutaneous_fat_percent / 100) : 0;
+}
+
+export function calc_fat_free_weight(weight, fat_mass) {
+    return weight > 0 ? round5(weight - fat_mass) : 0;
+}
+
+export function calc_standard_weight(height) {
+    const height_m = height / 100;
+    return round5(22 * height_m * height_m);
+}
+
+export function calc_weight_control(standard_weight, weight) {
+    return round5(standard_weight - weight);
+}
+
+export function calc_fat_control(weight, fat_percent, sex) {
+    const target_fat_percent = sex === 1 ? 12.0 : 22.0;
+    const target_fat_mass = weight > 0 ? round5(weight * target_fat_percent / 100) : 0;
+    const current_fat_mass = calc_fat_mass(weight, fat_percent);
+    return round5(target_fat_mass - current_fat_mass);
+}
+
+export function calc_muscle_control(weight, muscle_percent) {
+    const target_muscle_percent = 45.0;
+    const target_muscle_mass = weight > 0 ? round5(weight * target_muscle_percent / 100) : 0;
+    const current_muscle_mass = calc_muscle_mass(weight, muscle_percent);
+    return round5(target_muscle_mass - current_muscle_mass);
+}
+
+export function calc_body_score(weight, height, sex, age, impedance) {
+    const bmi = calc_bmi(weight, height);
+    const fat_percent = calc_fat_percent(weight, height, sex, age, impedance);
+    const target_fat = sex === 1 ? 12 : 22;
+    const score = 100 - (Math.abs(bmi - 22) * 1.2) - (Math.abs(fat_percent - target_fat) * 1.5);
+    return Math.max(0, Math.min(Math.round(score), 100));
+}
+
+export function calc_ffmi(weight, height, fat_mass) {
+    const ffmi = height > 0 ? (weight - fat_mass) / ((height / 100) ** 2) : 0;
+    return round5(ffmi);
+}
+
+export function calc_body_surface_area(height, weight) {
+    return round5(0.007184 * (height ** 0.725) * (weight ** 0.425));
+}
+
+export function calc_ideal_body_weight(height, sex) {
+    const height_inches = height / 2.54;
+    let ibw;
+    if (sex === 1) { // Male
+        ibw = 50 + 2.3 * (height_inches - 60);
+    } else { // Female
+        ibw = 45.5 + 2.3 * (height_inches - 60);
+    }
+    return round5(ibw);
+}

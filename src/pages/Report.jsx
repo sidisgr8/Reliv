@@ -271,6 +271,7 @@ export default function Report() {
       age,
       impedance
     );
+     const fat_mass = bodyComposition.calc_fat_mass(weight, fat_percent);
     const muscle_percent = bodyComposition.calc_muscle_percent(
       weight,
       height,
@@ -278,6 +279,7 @@ export default function Report() {
       age,
       impedance
     );
+    const muscle_mass = bodyComposition.calc_muscle_mass(weight, muscle_percent);
     const water_percent = bodyComposition.calc_water_percent(
       weight,
       height,
@@ -293,18 +295,22 @@ export default function Report() {
       impedance
     );
     const bone_percent = bodyComposition.calc_bone_percent(weight, bone_mass);
+    const standard_weight = bodyComposition.calc_standard_weight(height);
+    const subcutaneous_fat_percent = bodyComposition.calc_subcutaneous_fat_percent(fat_percent);
+
 
     return {
       bmi: bodyComposition.calc_bmi(weight, height),
       fat_percent,
-      fat_mass: bodyComposition.calc_fat_mass(weight, fat_percent),
+      fat_mass,
       muscle_percent,
-      muscle_mass: bodyComposition.calc_muscle_mass(weight, muscle_percent),
+      muscle_mass,
       water_percent,
       water_mass: bodyComposition.calc_water_mass(weight, water_percent),
       bone_mass,
       bone_percent,
       protein_percent: bodyComposition.calc_protein_percent(muscle_percent),
+      protein_mass: bodyComposition.calc_protein_mass(weight, bodyComposition.calc_protein_percent(muscle_percent)),
       visceral_fat_level: bodyComposition.calc_visceral_fat_level(
         weight,
         height,
@@ -318,6 +324,18 @@ export default function Report() {
         age,
         sex
       ),
+      skeletal_muscle_percent: bodyComposition.calc_skeletal_muscle_percent(muscle_percent),
+      subcutaneous_fat_percent,
+      subcutaneous_fat_mass: bodyComposition.calc_subcutaneous_fat_mass(weight, subcutaneous_fat_percent),
+      fat_free_weight: bodyComposition.calc_fat_free_weight(weight, fat_mass),
+      body_surface_area: bodyComposition.calc_body_surface_area(height, weight),
+      ideal_body_weight: bodyComposition.calc_ideal_body_weight(height, sex),
+      standard_weight,
+      weight_control: bodyComposition.calc_weight_control(standard_weight, weight),
+      fat_control: bodyComposition.calc_fat_control(weight, fat_percent, sex),
+      muscle_control: bodyComposition.calc_muscle_control(weight, muscle_percent),
+      body_score: bodyComposition.calc_body_score(weight, height, sex, age, impedance),
+      ffmi: bodyComposition.calc_ffmi(weight, height, fat_mass),
     };
   }, [vitals, patient]);
 
@@ -423,10 +441,6 @@ export default function Report() {
     }),
     [vitals]
   );
-
-  // src/pages/Report.jsx
-
-// src/pages/Report.jsx
 
 const generatePdf = async () => {
     const content = pdfRef.current;
@@ -671,57 +685,93 @@ const generatePdf = async () => {
                     label="BMI"
                     value={bodyCompositionData.bmi.toFixed(1)}
                     status="Body Mass Index"
-                    note="A measure of body fat based on height and weight."
                   />
                   <VitalCard
                     label="Body Fat"
                     value={`${bodyCompositionData.fat_percent.toFixed(1)}%`}
-                    status="Fat Percentage"
                     note={`${bodyCompositionData.fat_mass.toFixed(1)} kg`}
+                  />
+                   <VitalCard
+                    label="Subcutaneous Fat"
+                    value={`${bodyCompositionData.subcutaneous_fat_percent.toFixed(1)}%`}
+                    note={`${bodyCompositionData.subcutaneous_fat_mass.toFixed(1)} kg`}
                   />
                   <VitalCard
                     label="Muscle"
                     value={`${bodyCompositionData.muscle_percent.toFixed(1)}%`}
-                    status="Muscle Percentage"
                     note={`${bodyCompositionData.muscle_mass.toFixed(1)} kg`}
+                  />
+                   <VitalCard
+                    label="Skeletal Muscle"
+                    value={`${bodyCompositionData.skeletal_muscle_percent.toFixed(1)}%`}
                   />
                   <VitalCard
                     label="Water"
                     value={`${bodyCompositionData.water_percent.toFixed(1)}%`}
-                    status="Water Percentage"
                     note={`${bodyCompositionData.water_mass.toFixed(1)} kg`}
                   />
                   <VitalCard
                     label="Bone Mass"
                     value={`${bodyCompositionData.bone_mass.toFixed(1)} kg`}
-                    status="Bone Mass"
-                    note={`${bodyCompositionData.bone_percent.toFixed(1)} %`}
+                     note={`${bodyCompositionData.bone_percent.toFixed(1)} %`}
                   />
                   <VitalCard
                     label="Protein"
                     value={`${bodyCompositionData.protein_percent.toFixed(
                       1
                     )}%`}
-                    status="Protein Percentage"
-                    note="Essential for muscle repair and growth."
+                    note={`${bodyCompositionData.protein_mass.toFixed(1)} kg`}
                   />
                   <VitalCard
                     label="Visceral Fat"
                     value={bodyCompositionData.visceral_fat_level}
                     status="Level"
-                    note="Fat surrounding your organs."
                   />
                   <VitalCard
                     label="BMR"
                     value={`${bodyCompositionData.bmr.toFixed(0)} kcal`}
                     status="Basal Metabolic Rate"
-                    note="Calories your body burns at rest."
                   />
                   <VitalCard
                     label="Metabolic Age"
                     value={bodyCompositionData.metabolic_age}
                     status="Years"
-                    note="Your body's age based on metabolism."
+                  />
+                   <VitalCard
+                    label="Fat-Free Body Weight"
+                    value={`${bodyCompositionData.fat_free_weight.toFixed(2)} kg`}
+                  />
+                   <VitalCard
+                    label="Body Surface Area"
+                    value={`${bodyCompositionData.body_surface_area.toFixed(2)} m²`}
+                  />
+                  <VitalCard
+                    label="Ideal Body Weight"
+                    value={`${bodyCompositionData.ideal_body_weight.toFixed(2)} kg`}
+                  />
+                   <VitalCard
+                    label="Standard Weight"
+                    value={`${bodyCompositionData.standard_weight.toFixed(2)} kg`}
+                  />
+                  <VitalCard
+                    label="Weight Control"
+                    value={`${bodyCompositionData.weight_control.toFixed(2)} kg`}
+                  />
+                  <VitalCard
+                    label="Fat Control"
+                    value={`${bodyCompositionData.fat_control.toFixed(2)} kg`}
+                  />
+                   <VitalCard
+                    label="Muscle Control"
+                    value={`${bodyCompositionData.muscle_control.toFixed(2)} kg`}
+                  />
+                  <VitalCard
+                    label="Body Score"
+                    value={bodyCompositionData.body_score}
+                  />
+                  <VitalCard
+                    label="FFMI"
+                    value={bodyCompositionData.ffmi.toFixed(1)}
                   />
                 </div>
               </section>
@@ -812,6 +862,7 @@ const generatePdf = async () => {
 // --- Reusable VitalCard Component ---
 const VitalCard = ({ label, value, status, note, className = "" }) => {
   const getStatusColor = (statusLabel) => {
+    if (!statusLabel) return "bg-gray-100 text-gray-800";
     const lowerCaseStatus = statusLabel.toLowerCase();
     if (["normal"].includes(lowerCaseStatus))
       return "bg-green-100 text-green-800";
@@ -836,7 +887,7 @@ const VitalCard = ({ label, value, status, note, className = "" }) => {
     >
       <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
       <p className="text-3xl font-bold text-gray-800">{value}</p>
-      {status !== "Screening Result" && (
+      {status && status !== "Screening Result" && (
         <div className="mt-3 flex items-center">
           <span
             className={`px-2.5 py-1 text-xs font-semibold rounded-full ${getStatusColor(
@@ -847,9 +898,9 @@ const VitalCard = ({ label, value, status, note, className = "" }) => {
           </span>
         </div>
       )}
-      <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
+      {note && <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
         {note}
-      </p>
+      </p>}
     </div>
   );
 };
