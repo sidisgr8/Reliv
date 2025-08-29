@@ -17,17 +17,20 @@ const BodyComposition = () => {
   const handleFetchFromDevice = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/get-device-data');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       if (data && data.weight && data.impedance) {
         setWeight(data.weight);
         setImpedance(data.impedance);
         setError("");
       } else {
-        setError("Device not found or readings not taken.");
+        setError("Readings not taken. Please step on the device and try again.");
       }
     } catch (error) {
       console.error('Failed to fetch data from device:', error);
-      setError('Could not fetch data from the device. Please ensure the Python script is running and the device is connected.');
+      setError('Device not found. Please ensure the Python script is running and the device is connected.');
     }
   };
 
