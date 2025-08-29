@@ -9,12 +9,13 @@ import { useHealth } from "../context/HealthContext";
 const BodyComposition = () => {
   const [weight, setWeight] = useState("");
   const [impedance, setImpedance] = useState("");
+  const [height, setHeight] = useState("");
   const navigate = useNavigate();
   const { update } = useHealth();
 
   const handleSubmit = () => {
     update({
-      vitals: { weight: weight, impedance: impedance },
+      vitals: { weight: weight, impedance: impedance, height: height },
     });
     navigate("/payment");
   };
@@ -45,6 +46,19 @@ const BodyComposition = () => {
                 Enter your details
               </h3>
               <div className="flex flex-col gap-4">
+                <div>
+                  <label className="text-sm text-gray-700 mb-1 font-medium">
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-2 py-1"
+                    inputMode="numeric"
+                    aria-label="Height in cm"
+                  />
+                </div>
                 <div>
                   <label className="text-sm text-gray-700 mb-1 font-medium">
                     Weight (kg)

@@ -16,6 +16,9 @@ const defaultData = {
     tempF: "",       // Temperature in °F
     leftEye: "",     // Eye chart smallest line read (1-9)
     rightEye: "",
+    weight: "",      // Weight in kg
+    impedance: "",   // Impedance in ohms
+    height: ""      // Height in cm
   },
 };
 

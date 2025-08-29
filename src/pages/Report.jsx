@@ -1,3 +1,4 @@
+// src/pages/Report.jsx
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useHealth } from "../context/HealthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -256,13 +257,12 @@ export default function Report() {
   const [reportId, setReportId] = useState(null);
 
   const bodyCompositionData = useMemo(() => {
-    if (!vitals.weight || !patient.age || !patient.gender) {
+    if (!vitals.weight || !patient.age || !patient.gender || !vitals.height) {
       return null;
     }
     const sex = patient.gender.toLowerCase() === "male" ? 1 : 0;
-    const { weight, impedance } = vitals;
+    const { weight, impedance, height } = vitals;
     const { age } = patient;
-    const height = 170; // Assuming a default height, you might want to ask for this too
 
     const fat_percent = bodyComposition.calc_fat_percent(
       weight,
