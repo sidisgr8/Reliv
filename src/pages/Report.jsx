@@ -424,7 +424,11 @@ export default function Report() {
     [vitals]
   );
 
-  const generatePdf = async () => {
+  // src/pages/Report.jsx
+
+// src/pages/Report.jsx
+
+const generatePdf = async () => {
     const content = pdfRef.current;
     if (!content) return;
 
@@ -448,35 +452,22 @@ export default function Report() {
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
-    const canvasAspectRatio = canvasWidth / canvasHeight;
-    const pdfAspectRatio = pdfWidth / pageHeight;
-
-    let finalCanvasHeight, finalCanvasWidth;
-
-    if (canvasAspectRatio > pdfAspectRatio) {
-      finalCanvasWidth = pdfWidth;
-      finalCanvasHeight = pdfWidth / canvasAspectRatio;
-    } else {
-      finalCanvasHeight = pageHeight;
-      finalCanvasWidth = pageHeight * canvasAspectRatio;
-    }
-
-    const totalPages = Math.ceil(canvasHeight / (pageHeight * (canvasWidth / finalCanvasWidth)));
+    
+    const totalPages = Math.ceil(canvasHeight / (canvasWidth * pdfHeight / pdfWidth));
     
     for (let i = 0; i < totalPages; i++) {
       if (i > 0) {
         pdf.addPage();
       }
-      const y = - (i * pageHeight) * (canvasWidth / finalCanvasWidth);
-      pdf.addImage(imgData, "PNG", 0, y, finalCanvasWidth, canvasHeight * (finalCanvasWidth/canvasWidth) );
+      const y = - (i * pdfHeight);
+      pdf.addImage(imgData, "PNG", 0, y, pdfWidth, canvasHeight * pdfWidth / canvasWidth);
     }
 
     return pdf;
-  };
-
+};
   const handleDownloadPdf = async () => {
     const pdf = await generatePdf();
     pdf.save(`Reliv-Health-Report-${patient.name || "user"}.pdf`);

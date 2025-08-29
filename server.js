@@ -147,6 +147,8 @@ function assessEyes(left, right) {
   };
 }
 
+// server.js
+
 const generatePdfFromImage = (imageBase64) => {
   return new Promise((resolve) => {
     const doc = new PDFDocument({ size: 'a4', layout: 'portrait', margin: 0 });
