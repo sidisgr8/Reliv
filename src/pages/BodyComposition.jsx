@@ -16,7 +16,8 @@ const BodyComposition = () => {
 
   const handleFetchFromDevice = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/get-device-data');
+      // This URL now points directly to your Python Flask backend
+      const response = await fetch('http://localhost:5001/get_ble_data');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
