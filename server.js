@@ -149,21 +149,83 @@ function assessEyes(left, right) {
 
 // server.js
 
-const generatePdfFromImage = (imageBase64) => {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({ size: 'a4', layout: 'portrait', margin: 0 });
-    const buffers = [];
-    doc.on("data", buffers.push.bind(buffers));
-    doc.on("end", () => resolve(Buffer.concat(buffers)));
+const generatePdfFromImage = (imageBase64, options = {}) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const config = {
+        zoom: options.zoom || 1.2,       // zoom in slightly for readability
+        margin: options.margin || 20,   // page margins
+        showPageNumbers: options.showPageNumbers ?? true,
+        maxPages: options.maxPages || 20, // prevent runaway PDFs
+      };
 
-    // The image is already a full A4 render, so just place it on the page
-    doc.image(imageBase64, 0, 0, {
-      fit: [doc.page.width, doc.page.height],
-      align: 'center',
-      valign: 'center'
-    });
+      const doc = new PDFDocument({
+        size: 'A4',
+        layout: 'portrait',
+        margin: config.margin
+      });
 
-    doc.end();
+      const buffers = [];
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => resolve(Buffer.concat(buffers)));
+
+      // strip base64 header if present
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+
+      // effective page area
+      const pageWidth = doc.page.width - (2 * config.margin);
+      const pageHeight = doc.page.height - (2 * config.margin);
+
+      const img = doc.openImage(imageBuffer);
+
+      // scale image to fit width
+      const baseScale = pageWidth / img.width;
+      const scale = baseScale * config.zoom;
+      const scaledWidth = img.width * scale;
+      const scaledHeight = img.height * scale;
+
+      // how many vertical pages?
+      const pagesNeeded = Math.min(
+        Math.ceil(scaledHeight / pageHeight),
+        config.maxPages
+      );
+
+      for (let i = 0; i < pagesNeeded; i++) {
+        if (i > 0) doc.addPage();
+
+        doc.save();
+        doc.rect(config.margin, config.margin, pageWidth, pageHeight).clip();
+
+        // horizontally center if narrower
+        const xPosition =
+          scaledWidth < pageWidth
+            ? config.margin + (pageWidth - scaledWidth) / 2
+            : config.margin;
+
+        doc.image(imageBuffer, xPosition, config.margin - (i * pageHeight), {
+          width: scaledWidth,
+          height: scaledHeight
+        });
+
+        doc.restore();
+
+        if (config.showPageNumbers && pagesNeeded > 1) {
+          doc.fontSize(10)
+            .fillColor("#888888")
+            .text(
+              `Page ${i + 1} of ${pagesNeeded}`,
+              config.margin,
+              doc.page.height - config.margin - 20,
+              { align: "center", width: pageWidth }
+            );
+        }
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
   });
 };
 
