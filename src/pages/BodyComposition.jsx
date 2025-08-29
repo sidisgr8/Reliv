@@ -13,6 +13,20 @@ const BodyComposition = () => {
   const navigate = useNavigate();
   const { update } = useHealth();
 
+  const handleFetchFromDevice = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/get-device-data');
+      const data = await response.json();
+      if (data.weight && data.impedance) {
+        setWeight(data.weight);
+        setImpedance(data.impedance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data from device:', error);
+      alert('Could not fetch data from the device. Please ensure the Python script is running and the device is connected.');
+    }
+  };
+
   const handleSubmit = () => {
     update({
       vitals: { weight: weight, impedance: impedance, height: height },
@@ -46,6 +60,9 @@ const BodyComposition = () => {
                 Enter your details
               </h3>
               <div className="flex flex-col gap-4">
+                <PrimaryButton className="w-full" onClick={handleFetchFromDevice}>
+                  Fetch from Device
+                </PrimaryButton>
                 <div>
                   <label className="text-sm text-gray-700 mb-1 font-medium">
                     Height (cm)

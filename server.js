@@ -11,6 +11,8 @@ import { google } from "googleapis";
 import { MongoClient, ObjectId } from "mongodb"; // Import MongoClient and ObjectId
 import Razorpay from "razorpay"; // Import Razorpay
 import QRCode from "qrcode";
+import fetch from 'node-fetch'; // Add this line
+
 
 dotenv.config();
 
@@ -710,6 +712,18 @@ app.post("/api/send-receipt", async (req, res) => {
     res.status(500).json({ ok: false, message: "Failed to send receipt." });
   }
 });
+
+
+app.get('/api/get-device-data', async (req, res) => {
+    try {
+        const response = await fetch('http://127.0.0.1:5001/get_ble_data');
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch data from Python script.' });
+    }
+});
+
 
 // --- Admin and Other Routes (Unchanged) ---
 
