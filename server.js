@@ -6,11 +6,10 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import PDFDocument from "pdfkit";
 import { google } from "googleapis";
-import { MongoClient, ObjectId } from "mongodb"; // Import MongoClient and ObjectId
-import Razorpay from "razorpay"; // Import Razorpay
+import { MongoClient, ObjectId } from "mongodb";
+import Razorpay from "razorpay";
 import QRCode from "qrcode";
 import fetch from 'node-fetch';
-
 
 dotenv.config();
 
@@ -26,24 +25,27 @@ const razorpay = new Razorpay({
 });
 
 // --- MongoDB Atlas Connection Setup ---
-const mongoUrl = process.env.MONGODB_URI; // Make sure your .env file has this variable
+const mongoUrl = process.env.MONGODB_URI;
 const client = new MongoClient(mongoUrl);
 let db;
 
-async function connectDB() {
+// Middleware to ensure a database connection
+const connectToDB = async (req, res, next) => {
+  if (db) {
+    return next();
+  }
   try {
     await client.connect();
-    db = client.db("reliv"); // This will use (or create) a database named 'reliv'
-    console.log("✅ Successfully connected to MongoDB Atlas");
+    db = client.db("reliv");
+    next();
   } catch (err) {
     console.error("❌ Failed to connect to MongoDB", err);
-    process.exit(1);
+    res.status(500).send("Failed to connect to the database.");
   }
-}
+};
 
-connectDB();
-
-
+// Apply the middleware to all routes
+app.use(connectToDB);
 
 // --- Helper Functions (Unchanged) ---
 
@@ -935,11 +937,4 @@ app.get("/api/gdrive-image/:fileId", async (req, res) => {
   }
 });
 
-// Remove the app.listen() block
-// const PORT = process.env.PORT || 5000;
-// app.listen(PORT, () => {
-//   console.log(`🚀 Server running at http://localhost:${PORT}`);
-// });
-
-// Export the app for Vercel
 export default app;
