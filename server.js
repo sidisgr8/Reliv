@@ -887,35 +887,43 @@ app.post("/api/check-login", async (req, res) => {
 app.get("/api/gdrive-image/:fileId", async (req, res) => {
   const { fileId } = req.params;
   try {
+    // Check if the environment variable is set
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS) {
+      throw new Error("Google service account credentials are not set.");
+    }
+
+    // Parse the credentials from the environment variable
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS);
+
+    // Authenticate using the credentials object
     const auth = new google.auth.GoogleAuth({
-      keyFile: SERVICE_ACCOUNT_KEY_PATH,
+      credentials,
       scopes: ["https://www.googleapis.com/auth/drive.readonly"],
     });
+
     const drive = google.drive({ version: "v3", auth });
+
     const fileMetadata = await drive.files.get({
       fileId: fileId,
       fields: "mimeType",
     });
+
     const mimeType = fileMetadata.data.mimeType;
     if (!mimeType || !mimeType.startsWith("image/")) {
       return res.status(400).json({ message: "File is not an image." });
     }
+
     const response = await drive.files.get(
       { fileId: fileId, alt: "media" },
       { responseType: "arraybuffer" }
     );
+
     const imageBuffer = Buffer.from(response.data);
     const imageBase64 = imageBuffer.toString("base64");
     const imageUrl = `data:${mimeType};base64,${imageBase64}`;
     res.status(200).json({ imageUrl });
   } catch (error) {
     console.error("Google Drive API Error:", error.message);
-    if (error.code === "ENOENT") {
-      return res.status(500).json({
-        message:
-          "Service account key not found on the server. Make sure 'service-account-key.json' is in the 'data' directory.",
-      });
-    }
     if (error.errors) {
       const apiError = error.errors[0];
       if (apiError.reason === "notFound") {
@@ -926,12 +934,13 @@ app.get("/api/gdrive-image/:fileId", async (req, res) => {
       if (apiError.reason === "forbidden") {
         return res.status(403).json({
           message:
-            "Access denied. Please share the file with your service account's email address.",
+            "Access denied. Please ensure the file is shared with your service account's email address.",
         });
       }
     }
     res.status(500).json({
       message:
+        error.message ||
         "An unknown error occurred while fetching the image from Google Drive.",
     });
   }
