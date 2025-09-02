@@ -665,7 +665,7 @@ app.post("/api/save-report", async (req, res) => {
 });
 
 // Send report email
-app.post("/send-report", async (req, res) => {
+app.post("/api/send-report", async (req, res) => {
   try {
     const { to, name, healthData, reportImage } = req.body;
     if (!to || !healthData) {
@@ -935,7 +935,11 @@ app.get("/api/gdrive-image/:fileId", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+// Remove the app.listen() block
+// const PORT = process.env.PORT || 5000;
+// app.listen(PORT, () => {
+//   console.log(`🚀 Server running at http://localhost:${PORT}`);
+// });
+
+// Export the app for Vercel
+export default app;
