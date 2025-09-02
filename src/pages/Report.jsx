@@ -502,7 +502,7 @@ const generatePdf = async () => {
     const imgData = canvas.toDataURL("image/png");
 
     try {
-      const res = await fetch("/send-report", {
+      const res = await fetch("/api/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
