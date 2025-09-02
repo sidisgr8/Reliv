@@ -4,8 +4,6 @@ import cors from "cors";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import crypto from "crypto";
-import fs from "fs/promises";
-import path from "path";
 import PDFDocument from "pdfkit";
 import { google } from "googleapis";
 import { MongoClient, ObjectId } from "mongodb"; // Import MongoClient and ObjectId
@@ -45,14 +43,7 @@ async function connectDB() {
 
 connectDB();
 
-// --- Existing File-based Persistence for Admin/Reset ---
-const DATA_DIR = process.env.DATA_DIR || "./data";
-const TOKEN_STORE_FILE = path.join(DATA_DIR, "reset_tokens.json");
-const CRED_STORE_FILE = path.join(DATA_DIR, "admin_credentials.json");
-const SERVICE_ACCOUNT_KEY_PATH = path.join(
-  DATA_DIR,
-  "service-account-key.json"
-);
+
 
 // --- Helper Functions (Unchanged) ---
 
@@ -744,9 +735,7 @@ app.post("/api/send-receipt", async (req, res) => {
     console.log("🧾 Receipt data saved to MongoDB.");
 
     // Fetch eco stats
-    const ecoStatsResponse = await fetch(
-      `http://localhost:${PORT}/api/eco-stats`
-    );
+const ecoStatsResponse = await fetch(`${req.protocol}://${req.get('host')}/api/eco-stats`);
     const ecoStats = await ecoStatsResponse.json();
 
     const pdfBuffer = await generateReceiptPdf(
@@ -791,26 +780,10 @@ app.get('/api/get-device-data', async (req, res) => {
 
 // --- Admin and Other Routes (Unchanged) ---
 
-// File-based helpers
-async function ensureDataDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (e) {
-    console.error("Could not create data dir:", e);
-  }
-}
-async function loadJsonSafe(filePath) {
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    return JSON.parse(raw || "{}");
-  } catch (e) {
-    return {};
-  }
-}
-async function saveJsonSafe(filePath, obj) {
-  await ensureDataDir();
-  await fs.writeFile(filePath, JSON.stringify(obj, null, 2), "utf8");
-}
+
+
+
+
 
 app.get("/api/reports/history/:email", async (req, res) => {
   try {
@@ -831,106 +804,84 @@ app.get("/api/reports/history/:email", async (req, res) => {
 app.post("/api/send-reset-email", async (req, res) => {
   try {
     const { to } = req.body;
-    if (!to)
-      return res
-        .status(400)
-        .json({ ok: false, message: "Missing 'to' (admin email)." });
+    if (!to) return res.status(400).json({ ok: false, message: "Missing admin email." });
+    
     const token = Math.floor(100000 + Math.random() * 900000).toString();
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    const expiry = Date.now() + 1000 * 60 * 15;
-    const store = await loadJsonSafe(TOKEN_STORE_FILE);
-    store[to] = { tokenHash, expiry };
-    await saveJsonSafe(TOKEN_STORE_FILE, store);
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+
+    await db.collection("resetTokens").updateOne(
+        { email: to },
+        { $set: { tokenHash, expiry } },
+        { upsert: true }
+    );
+    
     const mailOptions = {
       from: `Reliv Reports <${process.env.GMAIL_USER}>`,
       to,
       subject: "Admin password reset — your recovery code",
-      text: `You (or someone claiming to be you) requested a password reset.\n\nYour recovery code is: ${token}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, ignore this email.`,
+      text: `Your recovery code is: ${token}\nThis code expires in 15 minutes.`,
     };
     await transporter.sendMail(mailOptions);
-    console.log(`Sent reset email to ${to}`);
     return res.json({ ok: true, message: "Recovery email sent." });
   } catch (err) {
     console.error("Error in /api/send-reset-email:", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Failed to send reset email." });
+    return res.status(500).json({ ok: false, message: "Failed to send reset email." });
   }
 });
 
 app.post("/api/confirm-reset", async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
-    if (!email || !token || !newPassword)
-      return res.status(400).json({ ok: false, message: "Missing parameters." });
-    const store = await loadJsonSafe(TOKEN_STORE_FILE);
-    const entry = store[email];
-    if (!entry)
-      return res
-        .status(400)
-        .json({ ok: false, message: "No reset request found for this email." });
-    if (Date.now() > entry.expiry) {
-      delete store[email];
-      await saveJsonSafe(TOKEN_STORE_FILE, store);
-      return res
-        .status(400)
-        .json({ ok: false, message: "Recovery code expired. Request a new one." });
+    if (!email || !token || !newPassword) return res.status(400).json({ ok: false, message: "Missing parameters." });
+
+    const entry = await db.collection("resetTokens").findOne({ email });
+
+    if (!entry) return res.status(400).json({ ok: false, message: "No reset request found for this email." });
+    if (new Date() > new Date(entry.expiry)) {
+      await db.collection("resetTokens").deleteOne({ email });
+      return res.status(400).json({ ok: false, message: "Recovery code expired." });
     }
     const inputHash = crypto.createHash("sha256").update(token).digest("hex");
     if (inputHash !== entry.tokenHash) {
       return res.status(400).json({ ok: false, message: "Invalid recovery code." });
     }
+
     const salt = crypto.randomBytes(16).toString("hex");
-    const derived = crypto
-      .pbkdf2Sync(newPassword, salt, 100000, 64, "sha512")
-      .toString("hex");
-    const credStore = await loadJsonSafe(CRED_STORE_FILE);
-    credStore[email] = {
-      algorithm: "pbkdf2",
-      salt,
-      iterations: 100000,
-      keyLen: 64,
-      digest: "sha512",
-      hash: derived,
-      updatedAt: Date.now(),
-    };
-    await saveJsonSafe(CRED_STORE_FILE, credStore);
-    delete store[email];
-    await saveJsonSafe(TOKEN_STORE_FILE, store);
-    console.log(`Password reset for ${email}`);
+    const derived = crypto.pbkdf2Sync(newPassword, salt, 100000, 64, "sha512").toString("hex");
+
+    await db.collection("admins").updateOne(
+        { email },
+        { $set: { hash: derived, salt, updatedAt: new Date() } }
+    );
+
+    await db.collection("resetTokens").deleteOne({ email });
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error in /api/confirm-reset:", err);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Failed to confirm reset." });
+    return res.status(500).json({ ok: false, message: "Failed to confirm reset." });
   }
 });
-
 app.post("/api/check-login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
-      return res.status(400).json({ ok: false, message: "Missing parameters." });
-    const credStore = await loadJsonSafe(CRED_STORE_FILE);
-    const user = credStore[email];
-    if (!user)
-      return res.status(400).json({ ok: false, message: "No such admin." });
-    if (user.algorithm !== "pbkdf2")
-      return res
-        .status(500)
-        .json({ ok: false, message: "Unsupported algorithm." });
-    const derived = crypto
-      .pbkdf2Sync(password, user.salt, user.iterations, user.keyLen, user.digest)
-      .toString("hex");
-    if (derived === user.hash) return res.json({ ok: true });
-    return res.status(401).json({ ok: false, message: "Invalid credentials." });
+    if (!email || !password) return res.status(400).json({ ok: false, message: "Missing parameters." });
+
+    const user = await db.collection("admins").findOne({ email });
+    if (!user) return res.status(401).json({ ok: false, message: "Invalid credentials." });
+
+    const derived = crypto.pbkdf2Sync(password, user.salt, 100000, 64, "sha512").toString("hex");
+
+    if (derived === user.hash) {
+        return res.json({ ok: true });
+    } else {
+        return res.status(401).json({ ok: false, message: "Invalid credentials." });
+    }
   } catch (err) {
     console.error("Error in /api/check-login:", err);
     return res.status(500).json({ ok: false, message: "Login check failed." });
   }
 });
-
 app.get("/api/gdrive-image/:fileId", async (req, res) => {
   const { fileId } = req.params;
   try {

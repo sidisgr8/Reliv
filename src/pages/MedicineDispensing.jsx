@@ -326,33 +326,33 @@ export default function MedicineDispensingWithAdmin() {
   // === NEW: GOOGLE DRIVE API HANDLER ===============================
   // =================================================================
   const handleGdriveUrl = async (kitId, url) => {
-    if (!url || !url.includes("drive.google.com")) {
-      return; // Not a GDrive link
+  if (!url || !url.includes("drive.google.com")) {
+    return; // Not a GDrive link
+  }
+  try {
+    const regex = /drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/;
+    const match = url.match(regex);
+    if (!match || !match[1]) {
+      alert("Could not extract file ID. Please use a valid Google Drive shareable link.");
+      return;
     }
-    try {
-      const regex = /drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/;
-      const match = url.match(regex);
-      if (!match || !match[1]) {
-        alert("Could not extract file ID. Please use a valid Google Drive shareable link.");
-        return;
-      }
-      const fileId = match[1];
+    const fileId = match[1];
 
-      // Call our new backend endpoint
-      const response = await fetch(`/api/gdrive-image/${fileId}`);
-      const data = await response.json();
+    // Call our new backend endpoint
+    const response = await fetch(`/api/gdrive-image/${fileId}`);
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch image.');
-      }
-
-      handleUpdateKitField(kitId, "imageUrl", data.imageUrl);
-
-    } catch (error) {
-      console.error("Error fetching GDrive image:", error);
-      alert(`Error: ${error.message}`);
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch image.');
     }
-  };
+
+    handleUpdateKitField(kitId, "imageUrl", data.imageUrl);
+
+  } catch (error) {
+    console.error("Error fetching GDrive image:", error);
+    alert(`Error: ${error.message}`);
+  }
+};
 
   return (
     <div className="relative min-h-screen bg-gray-50 font-sans pb-28">
