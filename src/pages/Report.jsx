@@ -345,14 +345,14 @@ export default function Report() {
         try {
           // Fetch history
           const historyRes = await fetch(
-            `http://localhost:5000/api/reports/history/${patient.email}`
+            `/api/reports/history/${patient.email}`
           );
           const historyData = await historyRes.json();
           setHistory(historyData);
 
           // Save current report and get ID
           const reportRes = await fetch(
-            "http://localhost:5000/api/save-report",
+            "/api/save-report",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -366,7 +366,7 @@ export default function Report() {
           if (reportData.ok) {
             setReportId(reportData.reportId);
             // Generate QR code
-            const qrRes = await fetch("http://localhost:5000/api/qr-code", {
+            const qrRes = await fetch("/api/qr-code", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -391,7 +391,7 @@ export default function Report() {
   useEffect(() => {
     const fetchEcoStats = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/eco-stats");
+        const res = await fetch("/api/eco-stats");
         const stats = await res.json();
         setEcoStats(stats);
       } catch (error) {
@@ -502,7 +502,7 @@ const generatePdf = async () => {
     const imgData = canvas.toDataURL("image/png");
 
     try {
-      const res = await fetch("http://localhost:5000/send-report", {
+      const res = await fetch("/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

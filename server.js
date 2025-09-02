@@ -334,7 +334,7 @@ function generateReportPdf(data, ecoStats) {
         .fontSize(10)
         .fillColor("#6B7280")
         .font("Helvetica")
-        .text(vital.label, textX, textY);
+        .text(vital.label, textX, yPos + 10);
       textY += 15;
       doc
         .fontSize(24)
@@ -564,9 +564,7 @@ app.get("/api/report/:id/download", async (req, res) => {
     if (!report) {
       return res.status(404).send("Report not found");
     }
-    const ecoStats = await (
-      await fetch(`http://localhost:${process.env.PORT || 5000}/api/eco-stats`)
-    ).json();
+    const ecoStats = await (await fetch(`/api/eco-stats`)).json();
     const pdfBuffer = await generateReportPdf(report, ecoStats);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -689,7 +687,7 @@ app.post("/send-report", async (req, res) => {
       ? await generatePdfFromImage(reportImage)
       : await generateReportPdf(
           healthData,
-          await (await fetch(`http://localhost:${PORT}/api/eco-stats`)).json()
+          await (await fetch(`/api/eco-stats`)).json()
         );
 
     const mailOptions = {

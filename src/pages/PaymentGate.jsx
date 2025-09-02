@@ -31,7 +31,7 @@ const PaymentGate = () => {
     if ((needsReport || cart.length > 0) && healthData.patient.email) {
       try {
         console.log("Attempting to send receipt...");
-        await fetch('http://localhost:5000/api/send-receipt', {
+        await fetch('/api/send-receipt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -209,7 +209,7 @@ export default function MedicineDispensingWithAdmin() {
     }
 
     try {
-        const res = await fetch("http://localhost:5000/api/check-login", {
+        const res = await fetch("/api/check-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: emailForLogin, password: passwordInput }),
@@ -230,7 +230,7 @@ export default function MedicineDispensingWithAdmin() {
     e.preventDefault();
     setStatusMessage("Sending request...");
     try {
-        const res = await fetch("http://localhost:5000/api/send-reset-email", {
+        const res = await fetch("/api/send-reset-email", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ to: adminEmail }),
@@ -251,7 +251,7 @@ export default function MedicineDispensingWithAdmin() {
     e.preventDefault();
     setStatusMessage("Verifying...");
     try {
-        const res = await fetch("http://localhost:5000/api/confirm-reset", {
+        const res = await fetch("/api/confirm-reset", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -339,7 +339,7 @@ export default function MedicineDispensingWithAdmin() {
       const fileId = match[1];
 
       // Call our new backend endpoint
-      const response = await fetch(`http://localhost:5000/api/gdrive-image/${fileId}`);
+      const response = await fetch(`/api/gdrive-image/${fileId}`);
       const data = await response.json();
 
       if (!response.ok) {
