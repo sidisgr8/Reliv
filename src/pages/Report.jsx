@@ -261,8 +261,10 @@ export default function Report() {
       return null;
     }
     const sex = patient.gender.toLowerCase() === "male" ? 1 : 0;
-    const { weight, impedance, height } = vitals;
-    const { age } = patient;
+    const weight = Number(vitals.weight);
+    const impedance = Number(vitals.impedance);
+    const height = Number(vitals.height);
+    const age = Number(patient.age);
 
     const fat_percent = bodyComposition.calc_fat_percent(
       weight,
