@@ -63,7 +63,7 @@ const EyeSightTest = () => {
   const [leftEyeLine, setLeftEyeLine] = useState("");
   const [rightEyeLine, setRightEyeLine] = useState("");
   const navigate = useNavigate();
-  const { update } = useHealth();
+  const { data, update } = useHealth(); // Get patient data
 
   const handleSubmit = () => {
     update({
@@ -134,8 +134,13 @@ const EyeSightTest = () => {
               inputMode="numeric"
               aria-label="Right eye line"
             />
-
-            <PrimaryButton className="w-full" onClick={handleSubmit}>
+            
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm text-gray-600">
+                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
+                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
+            </div>
+            
+            <PrimaryButton className="w-full mt-4" onClick={handleSubmit}>
               Procced →
             </PrimaryButton>
           </div>

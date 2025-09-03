@@ -65,7 +65,7 @@ const OxygenPulsePage = ({ onProceed }) => {
   const [oxygen, setOxygen] = useState("");
   const [pulse, setPulse] = useState("");
 
-   const { update } = useHealth();
+   const { data, update } = useHealth();
 
   const handleProceed = () => {
     update({
@@ -139,6 +139,10 @@ const OxygenPulsePage = ({ onProceed }) => {
                     aria-label="pulse"
                   />
                 </div>
+              </div>
+              <div className="mt-4 pt-4 border-t text-sm text-gray-600">
+                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
+                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
               </div>
             </div>
           </div>

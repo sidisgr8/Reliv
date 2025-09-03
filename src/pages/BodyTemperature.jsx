@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom"; // ✅ Added for navigation
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
-import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
 import ClockTimerVideo from "../assets/ClockTimer.mp4"; // <-- Import ClockTimer.mp4
 import { useHealth } from "../context/HealthContext";
 
@@ -61,7 +60,7 @@ const Splash = ({ onComplete }) => {
 const BodyTemperaturePage = () => {
   const [temperature, setTemperature] = useState("");
   const navigate = useNavigate(); // ✅ Hook for navigation
-  const { update } = useHealth();
+  const { data, update } = useHealth(); // Get patient data
 
 // Corrected code for src/pages/BodyTemperature.jsx
 const handleNext = () => {
@@ -119,6 +118,10 @@ const handleNext = () => {
                   aria-label="temperature"
                 />
                 <span className="text-sm text-gray-700">Farenheit</span>
+              </div>
+               <div className="mt-4 pt-4 border-t text-sm text-gray-600">
+                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
+                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
               </div>
             </div>
           </div>

@@ -12,7 +12,7 @@ const BodyComposition = () => {
   const [height, setHeight] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { update } = useHealth();
+  const { data, update } = useHealth(); // Get patient data from context
 
   const handleFetchFromDevice = async () => {
     try {
@@ -110,6 +110,10 @@ const BodyComposition = () => {
                     inputMode="numeric"
                     aria-label="Impedance in ohms"
                   />
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                    <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
+                    <p>Extracted Age: {data.patient.age || 'unknown'}</p>
                 </div>
               </div>
             </div>
