@@ -2,14 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Styles applied only during PDF generation to force a desktop-like layout, 
-  preventing content from being cut off on mobile.
-*/
+/* Styles applied only during PDF generation */
 .pdf-render {
   width: 900px !important;
   max-width: 900px !important;
   position: absolute;
   left: 0;
   top: 0;
-  z-index: -1; /* Hide it from view while rendering */
+  z-index: -1;
+}
+
+/* Virtual Keyboard Styles */
+.virtual-keyboard {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  background-color: #e5e7eb; /* A light gray background */
+  padding: 5px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.hg-theme-default .hg-button {
+  height: 50px !important;
+  font-size: 1.1rem;
+}
+
+.hg-theme-default .hg-button.hg-standardBtn {
+    min-width: 50px;
 }

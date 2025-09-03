@@ -4,8 +4,9 @@ import PrimaryButton from "../components/PrimaryButton";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useHealth } from "../context/HealthContext";
+import { KeyboardWrapper } from "../components/KeyboardWrapper";
 
-export default function CustomerDetails() {
+function CustomerDetails({ inputs, onInputChange }) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { update } = useHealth();
@@ -24,9 +25,23 @@ export default function CustomerDetails() {
     return () => clearTimeout(tOut);
   }, []);
 
+  useEffect(() => {
+    if (inputs) {
+      setForm((prevForm) => ({ ...prevForm, ...inputs }));
+    }
+  }, [inputs]);
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    // For radio buttons, we handle the state directly
+    if (type === 'radio') {
+        setForm((prev) => ({ ...prev, [name]: value }));
+    } else {
+        setForm((prev) => ({ ...prev, [name]: value }));
+        if (onInputChange) {
+            onInputChange(name, value);
+        }
+    }
   };
 
   const handleProceed = () => {
@@ -35,7 +50,7 @@ export default function CustomerDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-sans overflow-hidden">
+    <div className="min-h-screen bg-white flex flex-col font-sans overflow-hidden pb-64">
       {/* Top faded orange header area */}
       <div className="bg-gradient-to-b from-orange-50 to-white pt-[60px] pb-6 flex flex-col items-center">
         <Logo size="text-3xl" />
@@ -128,5 +143,13 @@ export default function CustomerDetails() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CustomerDetailsWrapper() {
+  return (
+    <KeyboardWrapper>
+      <CustomerDetails />
+    </KeyboardWrapper>
   );
 }
