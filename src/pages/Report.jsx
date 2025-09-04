@@ -1,4 +1,3 @@
-// src/pages/Report.jsx
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useHealth } from "../context/HealthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -18,7 +17,6 @@ import {
   ArcElement,
 } from "chart.js";
 import * as bodyComposition from "../utils/bodyComposition";
-import { KeyboardWrapper } from "../components/KeyboardWrapper";
 
 ChartJS.register(
   CategoryScale,
@@ -31,73 +29,81 @@ ChartJS.register(
   ArcElement
 );
 
-// --- Helper Functions (assessBP, assessSpO2, etc. - unchanged) ---
+// --- Helper Functions ---
 function assessBP(sys, dia) {
   const s = Number(sys),
     d = Number(dia);
   if (!s || !d) return { label: "—", advice: "No BP values provided." };
   if (s < 120 && d < 80)
-    return { label: "Normal", advice: "Great! Keep up a healthy lifestyle." };
+    return { label: "Normal", advice: "Good: Keep up a healthy lifestyle." };
   if (s < 130 && d < 80)
     return {
       label: "Elevated",
-      advice: "Monitor regularly; consider diet/exercise.",
+      advice: "Keep a check: Monitor regularly; consider diet/exercise.",
     };
   if ((s >= 130 && s <= 139) || (d >= 80 && d <= 89))
     return {
       label: "Stage 1 Hypertension",
-      advice: "Consult a clinician; lifestyle changes recommended.",
+      advice: "Alert: Consult a clinician; lifestyle changes recommended.",
     };
   if (s >= 140 || d >= 90)
     return {
       label: "Stage 2 Hypertension",
-      advice: "Seek medical advice soon.",
+      advice: "Alert: Seek medical advice soon.",
     };
   return { label: "—", advice: "Check values." };
 }
+
 function assessSpO2(spo2) {
   const v = Number(spo2);
   if (!v) return { label: "—", advice: "No SpO₂ value provided." };
   if (v >= 95)
     return {
       label: "Normal",
-      advice: "Oxygen saturation is within normal range.",
+      advice: "Good: Oxygen saturation is within normal range.",
     };
   if (v >= 90)
     return {
       label: "Borderline",
-      advice: "Monitor; if symptoms occur, contact a clinician.",
+      advice: "Keep a check: Monitor; if symptoms occur, contact a clinician.",
     };
-  return { label: "Low", advice: "Low oxygen level; seek care if persistent." };
+  return { label: "Low", advice: "Alert: Low oxygen level; seek care if persistent." };
 }
+
 function assessPulse(pulse) {
   const v = Number(pulse);
   if (!v) return { label: "—", advice: "No pulse value provided." };
   if (v >= 60 && v <= 100)
     return {
       label: "Normal",
-      advice: "Resting heart rate is within normal range.",
+      advice: "Good: Resting heart rate is within normal range.",
     };
   if (v < 60)
     return {
       label: "Low",
-      advice: "Could be normal for athletes; else, monitor.",
+      advice: "Keep a check: Could be normal for athletes; else, monitor.",
     };
   return {
-    label: "High",
-    advice: "Tachycardia; consider rest and consult if persistent.",
-  };
+      label: "High",
+      advice: "Alert: Tachycardia; consider rest and consult if persistent.",
+    };
 }
+
 function assessTempF(t) {
   const v = Number(t);
   if (!v) return { label: "—", advice: "No temperature provided." };
   if (v < 97)
-    return { label: "Low", advice: "Slightly low; ensure warmth and re-check." };
-  if (v <= 99) return { label: "Normal", advice: "Within normal range." };
-  if (v < 100.4)
-    return { label: "Elevated", advice: "Mild elevation; monitor." };
-  return { label: "Fever", advice: "Possible fever; consider medical advice." };
+    return { label: "Low", advice: "Alert: Slightly low; ensure warmth and re-check." };
+  if (v <= 99.5) return { label: "Normal", advice: "Good: Within normal range." };
+  if (v <= 100.4)
+    return { label: "Elevated", advice: "Keep a check: Mild elevation; monitor." };
+  if (v <= 102)
+    return { label: "Fever", advice: "Keep a check: Mild fever; monitor and rest." };
+  if (v <= 104)
+    return { label: "High Fever", advice: "Alert: High fever; seek medical advice." };
+  return { label: "Critical Fever", advice: "Alert: Critical temperature; urgent medical attention needed." };
 }
+
 function getSnellenEquivalent(line) {
   const lines = {
     1: 200,
@@ -112,14 +118,41 @@ function getSnellenEquivalent(line) {
   };
   return lines[line] || "—";
 }
+
 function assessEyes(left, right) {
-  if (!left && !right)
-    return { summary: "—", note: "No eyesight input provided." };
+  if (!left && !right) {
+    return { summary: "—", note: "No eyesight input provided.", comment: "Please provide eye test results for assessment." };
+  }
+
+  const leftSnellen = getSnellenEquivalent(left);
+  const rightSnellen = getSnellenEquivalent(right);
+  const summary = `Left: 20/${leftSnellen}, Right: 20/${rightSnellen}`;
+  let leftComment = "", rightComment = "", combinedComment = "";
+
+  if (leftSnellen !== "—") {
+    if (leftSnellen <= 25) leftComment = "Good: Great vision in your left eye—keep it up!";
+    else if (leftSnellen <= 40) leftComment = "Keep a check: Your left eye is doing well, but spectacles might help for fine details.";
+    else if (leftSnellen <= 70) leftComment = "Alert: Your left eye could benefit from spectacles; a check-up is a good idea.";
+    else leftComment = "Alert: Your left eye vision is limited—please see a doctor.";
+  }
+
+  if (rightSnellen !== "—") {
+    if (rightSnellen <= 25) rightComment = "Good: Excellent vision in your right eye—maintain healthy habits!";
+    else if (rightSnellen <= 40) rightComment = "Keep a check: Your right eye is solid, though spectacles might improve clarity.";
+    else if (rightSnellen <= 70) rightComment = "Alert: Spectacles could help your right eye; consider a professional visit.";
+    else rightComment = "Alert: Your right eye vision needs attention—consult a doctor.";
+  }
+
+  const worseSnellen = Math.max(leftSnellen === "—" ? 0 : leftSnellen, rightSnellen === "—" ? 0 : rightSnellen);
+  if (worseSnellen <= 25) combinedComment = "Good: Both eyes are in great shape—keep nurturing your eye health!";
+  else if (worseSnellen <= 40) combinedComment = "Keep a check: Your vision is generally good, but spectacles might enhance your experience.";
+  else if (worseSnellen <= 70) combinedComment = "Alert: Spectacles could improve your vision; a professional check is recommended.";
+  else combinedComment = "Alert: Your vision suggests a need for a doctor’s evaluation.";
+
   return {
-    summary: `Left: 20/${getSnellenEquivalent(
-      left
-    )}, Right: 20/${getSnellenEquivalent(right)}`,
-    note: "This is a basic screening. Smaller line numbers indicate better acuity.",
+    summary,
+    note: combinedComment,
+    comment: `${leftComment} ${rightComment} Overall, ${combinedComment}`,
   };
 }
 
@@ -129,7 +162,7 @@ const VitalsHistoryChart = ({ history, currentVitals }) => {
     { ...currentVitals, createdAt: new Date() },
   ]
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-    .slice(-10); // Limit to last 10 entries for clarity
+    .slice(-10);
 
   const chartData = {
     labels: combinedHistory.map((h) =>
@@ -241,33 +274,27 @@ const BodyCompositionChart = ({ compositionData }) => {
 };
 
 // --- Main Report Component ---
-
-function Report({ inputs, onInputChange }) {
+export default function Report() {
   const { data } = useHealth();
   const navigate = useNavigate();
   const location = useLocation();
   const { patient, vitals } = data;
   const [sending, setSending] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [showCleansing, setShowCleansing] = useState(false); // State to control animation
+  const [showCleansing, setShowCleansing] = useState(false);
   const [ecoStats, setEcoStats] = useState(null);
   const pdfRef = useRef();
+  const referenceRef = useRef();
   const stockUpdated = useRef(false);
   const [history, setHistory] = useState([]);
-  const [qrCode, setQrCode] = useState("");
-  const [reportId, setReportId] = useState(null);
-  const [doctorEmail, setDoctorEmail] = useState("");
-  const [sendingTo, setSendingTo] = useState(null); // null, 'patient', or 'doctor'
 
   const bodyCompositionData = useMemo(() => {
     if (!vitals.weight || !patient.age || !patient.gender || !vitals.height) {
       return null;
     }
     const sex = patient.gender.toLowerCase() === "male" ? 1 : 0;
-    const weight = Number(vitals.weight);
-    const impedance = Number(vitals.impedance);
-    const height = Number(vitals.height);
-    const age = Number(patient.age);
+    const { weight, impedance, height } = vitals;
+    const { age } = patient;
 
     const fat_percent = bodyComposition.calc_fat_percent(
       weight,
@@ -304,8 +331,9 @@ function Report({ inputs, onInputChange }) {
     );
     const bone_percent = bodyComposition.calc_bone_percent(weight, bone_mass);
     const standard_weight = bodyComposition.calc_standard_weight(height);
-    const subcutaneous_fat_percent =
-      bodyComposition.calc_subcutaneous_fat_percent(fat_percent);
+    const subcutaneous_fat_percent = bodyComposition.calc_subcutaneous_fat_percent(
+      fat_percent
+    );
 
     return {
       bmi: bodyComposition.calc_bmi(weight, height),
@@ -335,18 +363,16 @@ function Report({ inputs, onInputChange }) {
         age,
         sex
       ),
-      skeletal_muscle_percent:
-        bodyComposition.calc_skeletal_muscle_percent(muscle_percent),
+      skeletal_muscle_percent: bodyComposition.calc_skeletal_muscle_percent(
+        muscle_percent
+      ),
       subcutaneous_fat_percent,
       subcutaneous_fat_mass: bodyComposition.calc_subcutaneous_fat_mass(
         weight,
         subcutaneous_fat_percent
       ),
       fat_free_weight: bodyComposition.calc_fat_free_weight(weight, fat_mass),
-      body_surface_area: bodyComposition.calc_body_surface_area(
-        height,
-        weight
-      ),
+      body_surface_area: bodyComposition.calc_body_surface_area(height, weight),
       ideal_body_weight: bodyComposition.calc_ideal_body_weight(height, sex),
       standard_weight,
       weight_control: bodyComposition.calc_weight_control(
@@ -370,61 +396,41 @@ function Report({ inputs, onInputChange }) {
   }, [vitals, patient]);
 
   useEffect(() => {
-    if (inputs && inputs.doctorEmail) {
-      setDoctorEmail(inputs.doctorEmail);
-    }
-  }, [inputs]);
-
-  useEffect(() => {
-    const fetchHistoryAndGenerateQR = async () => {
+    const fetchHistory = async () => {
       if (patient.email) {
         try {
-          // Fetch history
           const historyRes = await fetch(
-            `/api/reports/history/${patient.email}`
+            `http://localhost:5000/api/reports/history/${patient.email}`
           );
           const historyData = await historyRes.json();
           setHistory(historyData);
 
-          // Save current report and get ID
-          const reportRes = await fetch("/api/save-report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              healthData: data,
-              bodyCompositionData: bodyCompositionData,
-            }),
-          });
-          const reportData = await reportRes.json();
-          if (reportData.ok) {
-            setReportId(reportData.reportId);
-            // Generate QR code
-            const qrRes = await fetch("/api/qr-code", {
+          await fetch(
+            "http://localhost:5000/api/save-report",
+            {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                url: `${window.location.origin}/api/report/${reportData.reportId}/download`,
+                healthData: data,
+                bodyCompositionData: bodyCompositionData,
               }),
-            });
-            const qrData = await qrRes.json();
-            setQrCode(qrData.qrCode);
-          }
+            }
+          );
         } catch (error) {
           console.error(
-            "Failed to fetch report history or generate QR code:",
+            "Failed to fetch report history:",
             error
           );
         }
       }
     };
-    fetchHistoryAndGenerateQR();
+    fetchHistory();
   }, [patient.email, data, bodyCompositionData]);
 
-  // Fetch eco stats on component mount
   useEffect(() => {
     const fetchEcoStats = async () => {
       try {
-        const res = await fetch("/api/eco-stats");
+        const res = await fetch("http://localhost:5000/api/eco-stats");
         const stats = await res.json();
         setEcoStats(stats);
       } catch (error) {
@@ -434,7 +440,6 @@ function Report({ inputs, onInputChange }) {
     fetchEcoStats();
   }, []);
 
-  // Stock reduction logic for any kits purchased with the report
   useEffect(() => {
     if (stockUpdated.current) {
       return;
@@ -475,7 +480,7 @@ function Report({ inputs, onInputChange }) {
     [vitals]
   );
 
-  const generatePdfAsImage = async () => {
+  const captureReport = async () => {
     const content = pdfRef.current;
     if (!content) return null;
 
@@ -490,64 +495,16 @@ function Report({ inputs, onInputChange }) {
     });
 
     content.classList.remove("pdf-render");
+
     return canvas.toDataURL("image/png");
   };
 
-  const handleDownloadPdf = async () => {
-    const imgData = await generatePdfAsImage();
-    if (!imgData) return;
-
-    const pdf = new jsPDF({
-      orientation: "p",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-    img.src = imgData;
-    await new Promise((resolve) => {
-      img.onload = resolve;
-    });
-
-    const canvasWidth = img.width;
-    const canvasHeight = img.height;
-
-    const totalPages = Math.ceil(
-      canvasHeight / ((canvasWidth * pdfHeight) / pdfWidth)
-    );
-
-    for (let i = 0; i < totalPages; i++) {
-      if (i > 0) {
-        pdf.addPage();
-      }
-      const y = -(i * pdfHeight);
-      pdf.addImage(
-        imgData,
-        "PNG",
-        0,
-        y,
-        pdfWidth,
-        (canvasHeight * pdfWidth) / pdfWidth
-      );
-    }
-
-    pdf.save(`Reliv-Health-Report-${patient.name || "user"}.pdf`);
-  };
-
-  const handleSendEmail = async () => {
-    setSendingTo("patient");
-    const imgData = await generatePdfAsImage();
-    if (!imgData) {
-      setSendingTo(null);
-      return;
-    }
+  const handleSendFullEmail = async () => {
+    setSending(true);
+    const imgData = await captureReport();
 
     try {
-      const res = await fetch("/api/send-report", {
+      const res = await fetch("http://localhost:5000/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -555,11 +512,12 @@ function Report({ inputs, onInputChange }) {
           name: patient.name,
           healthData: data,
           reportImage: imgData,
+          isPersonalized: false,
         }),
       });
       const result = await res.json();
       if (result.ok) {
-        setShowCleansing(true); // Trigger the animation on success
+        setShowCleansing(true);
       } else {
         alert("Could not send email. Please try again.");
       }
@@ -567,46 +525,7 @@ function Report({ inputs, onInputChange }) {
       console.error("Failed to send email:", error);
       alert("An error occurred. Please check the server logs.");
     } finally {
-      setSendingTo(null);
-    }
-  };
-
-  const handleSendToDoctor = async () => {
-    if (!doctorEmail || !/^\S+@\S+\.\S+$/.test(doctorEmail)) {
-      alert("Please enter a valid email address for the doctor.");
-      return;
-    }
-    setSendingTo("doctor");
-    const imgData = await generatePdfAsImage();
-    if (!imgData) {
-      setSendingTo(null);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/send-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: doctorEmail,
-          name: patient.name,
-          healthData: data,
-          reportImage: imgData,
-        }),
-      });
-      const result = await res.json();
-      if (result.ok) {
-        alert(`Report sent successfully to ${doctorEmail}`);
-        setDoctorEmail(""); // Clear input on success
-        if (onInputChange) onInputChange("doctorEmail", "");
-      } else {
-        alert("Could not send email to the doctor. Please try again.");
-      }
-    } catch (error) {
-      console.error("Failed to send email to doctor:", error);
-      alert("An error occurred. Please check the server logs.");
-    } finally {
-      setSendingTo(null);
+      setSending(false);
     }
   };
 
@@ -650,7 +569,6 @@ function Report({ inputs, onInputChange }) {
     setIsSpeaking(true);
   };
 
-  // Cleanup speech on component unmount
   useEffect(() => {
     return () => {
       if (isSpeaking) {
@@ -660,7 +578,7 @@ function Report({ inputs, onInputChange }) {
   }, [isSpeaking]);
 
   return (
-    <div className="bg-gray-50 min-h-screen py-12 px-4 pb-80">
+    <div className="bg-gray-50 min-h-screen py-12 px-4">
       <div className="max-w-3xl mx-auto">
         <div
           ref={pdfRef}
@@ -700,25 +618,20 @@ function Report({ inputs, onInputChange }) {
                   {patient.age || "N/A"}
                 </p>
                 <p>
-                  <strong className="font-medium text-gray-500">
-                    Gender:
-                  </strong>{" "}
+                  <strong className="font-medium text-gray-500">Gender:</strong>{" "}
                   {patient.gender || "N/A"}
                 </p>
                 <p>
-                  <strong className="font-medium text-gray-500">
-                    Phone:
-                  </strong>{" "}
+                  <strong className="font-medium text-gray-500">Phone:</strong>{" "}
                   {patient.phone || "N/A"}
                 </p>
                 <p className="col-span-2">
-                  <strong className="font-medium text-gray-500">
-                    Email:
-                  </strong>{" "}
+                  <strong className="font-medium text-gray-500">Email:</strong>{" "}
                   {patient.email || "N/A"}
                 </p>
               </div>
             </section>
+
             <section>
               <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-6">
                 Health Vitals
@@ -759,8 +672,11 @@ function Report({ inputs, onInputChange }) {
                 />
               </div>
             </section>
+
             {bodyCompositionData && (
-              <section className="mt-8">
+              <section className="mt各个
+
+              mt-8">
                 <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
                   Body Composition
                 </h3>
@@ -807,9 +723,7 @@ function Report({ inputs, onInputChange }) {
                   />
                   <VitalCard
                     label="Protein"
-                    value={`${bodyCompositionData.protein_percent.toFixed(
-                      1
-                    )}%`}
+                    value={`${bodyCompositionData.protein_percent.toFixed(1)}%`}
                     note={`${bodyCompositionData.protein_mass.toFixed(1)} kg`}
                   />
                   <VitalCard
@@ -829,9 +743,7 @@ function Report({ inputs, onInputChange }) {
                   />
                   <VitalCard
                     label="Fat-Free Body Weight"
-                    value={`${bodyCompositionData.fat_free_weight.toFixed(
-                      2
-                    )} kg`}
+                    value={`${bodyCompositionData.fat_free_weight.toFixed(2)} kg`}
                   />
                   <VitalCard
                     label="Body Surface Area"
@@ -847,15 +759,11 @@ function Report({ inputs, onInputChange }) {
                   />
                   <VitalCard
                     label="Standard Weight"
-                    value={`${bodyCompositionData.standard_weight.toFixed(
-                      2
-                    )} kg`}
+                    value={`${bodyCompositionData.standard_weight.toFixed(2)} kg`}
                   />
                   <VitalCard
                     label="Weight Control"
-                    value={`${bodyCompositionData.weight_control.toFixed(
-                      2
-                    )} kg`}
+                    value={`${bodyCompositionData.weight_control.toFixed(2)} kg`}
                   />
                   <VitalCard
                     label="Fat Control"
@@ -863,9 +771,7 @@ function Report({ inputs, onInputChange }) {
                   />
                   <VitalCard
                     label="Muscle Control"
-                    value={`${bodyCompositionData.muscle_control.toFixed(
-                      2
-                    )} kg`}
+                    value={`${bodyCompositionData.muscle_control.toFixed(2)} kg`}
                   />
                   <VitalCard
                     label="Body Score"
@@ -878,6 +784,7 @@ function Report({ inputs, onInputChange }) {
                 </div>
               </section>
             )}
+
             {history.length > 0 && (
               <section className="mt-8">
                 <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
@@ -886,38 +793,353 @@ function Report({ inputs, onInputChange }) {
                 <VitalsHistoryChart history={history} currentVitals={data} />
               </section>
             )}
+
             {bodyCompositionData && (
               <section className="mt-8">
                 <BodyCompositionChart compositionData={bodyCompositionData} />
               </section>
             )}
-            {qrCode && (
-              <section className="mt-8 text-center">
-                <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
-                  Download Your Report
-                </h3>
-                <div className="flex justify-center">
-                  <img src={qrCode} alt="QR Code to download report" />
+
+            <section className="mt-8">
+              <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                Personalized Layman Report Summary
+              </h3>
+              <ul className="list-disc pl-5 text-gray-700 text-sm">
+                <li>
+                  <strong>Blood Pressure:</strong> {vitals.systolic || "—"}/{vitals.diastolic || "—"} mmHg - {computed.bp.label}. {computed.bp.advice} {computed.bp.label.includes("Hypertension") ? "Basic home remedy: Reduce salt intake, walk 30 minutes daily, and practice relaxation techniques." : ""}
+                </li>
+                <li>
+                  <strong>Oxygen Saturation (SpO₂):</strong> {vitals.spo2 || "—"}% - {computed.spo2.label}. {computed.spo2.advice}
+                </li>
+                <li>
+                  <strong>Pulse Rate:</strong> {vitals.pulse || "—"} BPM - {computed.pulse.label}. {computed.pulse.advice}
+                </li>
+                <li>
+                  <strong>Body Temperature:</strong> {vitals.tempF || "—"} °F - {computed.temp.label}. {computed.temp.advice}
+                </li>
+                <li>
+                  <strong>Visual Acuity:</strong> {computed.eyes.summary}. {computed.eyes.comment}
+                </li>
+                <li>
+                  <strong>Weight:</strong> Your weight is {vitals.weight ? `${vitals.weight} kg` : "N/A"}, which is{" "}
+                  {bodyCompositionData && vitals.weight ? (
+                    patient.gender.toLowerCase() === "male" ? (
+                      vitals.weight < 50 ? "low (Athletic)" :
+                      vitals.weight <= 90 ? "Standard" : "high (Needs Boost)"
+                    ) : (
+                      vitals.weight < 40 ? "low (Athletic)" :
+                      vitals.weight <= 80 ? "Standard" : "high (Needs Boost)"
+                    )
+                  ) : "N/A"}.{" "}
+                  {bodyCompositionData && vitals.weight ? (
+                    patient.gender.toLowerCase() === "male" ? (
+                      vitals.weight < 50 ? "Increase calorie intake with nutrient-dense foods like whole grains, lean proteins, and healthy fats." :
+                      vitals.weight <= 90 ? "Maintain with a balanced diet including adequate protein and regular exercise like walking." :
+                      "Focus on portion control and incorporate 30 minutes of cardio 3-4 times a week to manage weight."
+                    ) : (
+                      vitals.weight < 40 ? "Increase calorie intake with nutrient-dense foods like whole grains, lean proteins, and healthy fats." :
+                      vitals.weight <= 80 ? "Maintain with a balanced diet including adequate protein and regular exercise like walking." :
+                      "Focus on portion control and incorporate 30 minutes of cardio 3-4 times a week to manage weight."
+                    )
+                  ) : "Please provide weight data for personalized advice."}
+                </li>
+                <li>
+                  <strong>BMI:</strong> Your BMI is {bodyCompositionData ? bodyCompositionData.bmi.toFixed(1) : "N/A"}, which is{" "}
+                  {bodyCompositionData ? (
+                    bodyCompositionData.bmi < 18.0 ? "low (Underweight)" :
+                    bodyCompositionData.bmi <= 22.9 ? "Standard (Normal)" :
+                    bodyCompositionData.bmi <= 24.9 ? "high (Overweight)" : "high (Obese)"
+                  ) : "N/A"}.{" "}
+                  {bodyCompositionData ? (
+                    bodyCompositionData.bmi < 18.0 ? "Increase calorie intake with nutrient-dense foods like nuts, avocados, and whole grains to gain weight." :
+                    bodyCompositionData.bmi <= 22.9 ? "Maintain with a balanced diet and regular physical activity like walking or yoga." :
+                    bodyCompositionData.bmi <= 24.9 ? "Incorporate cardio exercises like brisk walking or cycling 3-4 times a week to manage weight." :
+                    "Focus on a calorie-controlled diet and consult a nutritionist for weight management strategies."
+                  ) : "Please provide weight and height for BMI advice."}
+                </li>
+                <li>
+                  <strong>Body Fat:</strong> Your body fat is {bodyCompositionData ? `${bodyCompositionData.fat_percent.toFixed(1)}%` : "N/A"}, which is{" "}
+                  {bodyCompositionData && patient.gender.toLowerCase() === "male" ? (
+                    bodyCompositionData.fat_percent < 6 ? "low (Athletic)" :
+                    bodyCompositionData.fat_percent <= 13 ? "low (Excellent)" :
+                    bodyCompositionData.fat_percent <= 20 ? "Standard" : "high (Needs Boost)"
+                  ) : bodyCompositionData ? (
+                    bodyCompositionData.fat_percent < 14 ? "low (Athletic)" :
+                    bodyCompositionData.fat_percent <= 20 ? "low (Excellent)" :
+                    bodyCompositionData.fat_percent <= 30 ? "Standard" : "high (Needs Boost)"
+                  ) : "N/A"}.{" "}
+                  {bodyCompositionData ? (
+                    patient.gender.toLowerCase() === "male" ? (
+                      bodyCompositionData.fat_percent < 6 ? "Maintain your lean physique with high-protein meals and strength training." :
+                      bodyCompositionData.fat_percent <= 13 ? "Continue with cardio and strength exercises to stay lean." :
+                      bodyCompositionData.fat_percent <= 20 ? "Maintain with healthy fats like olive oil and regular exercise." :
+                      "Reduce fat by adding 30 minutes of cardio 3-4 times a week and cutting processed foods."
+                    ) : (
+                      bodyCompositionData.fat_percent < 14 ? "Maintain your lean physique with high-protein meals and strength training." :
+                      bodyCompositionData.fat_percent <= 20 ? "Continue with cardio and strength exercises to stay lean." :
+                      bodyCompositionData.fat_percent <= 30 ? "Maintain with healthy fats like olive oil and regular exercise." :
+                      "Reduce fat by adding 30 minutes of cardio 3-4 times a week and cutting processed foods."
+                    )
+                  ) : "Please provide complete data for body fat advice."}
+                </li>
+                <li>
+                  <strong>Muscle %:</strong> Your muscle percentage is {bodyCompositionData ? `${bodyCompositionData.muscle_percent.toFixed(1)}%` : "N/A"}, which is{" "}
+                  {bodyCompositionData && patient.gender.toLowerCase() === "male" ? (
+                    bodyCompositionData.muscle_percent < 33 ? "low (Needs Boost)" :
+                    bodyCompositionData.muscle_percent <= 52 ? "Standard" : "high (Athletic)"
+                  ) : bodyCompositionData ? (
+                    bodyCompositionData.muscle_percent < 24 ? "low (Needs Boost)" :
+                    bodyCompositionData.muscle_percent <= 42 ? "Standard" : "high (Athletic)"
+                  ) : "N/A"}.{" "}
+                  {bodyCompositionData ? (
+                    patient.gender.toLowerCase() === "male" ? (
+                      bodyCompositionData.muscle_percent < 33 ? "Build muscle with strength training 2-3 times a week and a protein-rich diet." :
+                      bodyCompositionData.muscle_percent <= 52 ? `Maintain with ${patient.age < 40 ? "weightlifting" : "moderate resistance exercises"} 2-3 times a week.` :
+                      "Sustain your athletic build with advanced strength training and adequate protein."
+                    ) : (
+                      bodyCompositionData.muscle_percent < 24 ? "Build muscle with strength training 2-3 times a week and a protein-rich diet." :
+                      bodyCompositionData.muscle_percent <= 42 ? `Maintain with ${patient.age < 40 ? "weightlifting" : "moderate resistance exercises"} 2-3 times a week.` :
+                      "Sustain your athletic build with advanced strength training and adequate protein."
+                    )
+                  ) : "Please provide complete data for muscle advice."}
+                </li>
+                <li>
+                  <strong>Body Type:</strong> Your body type is{" "}
+                  {bodyCompositionData ? (
+                    bodyCompositionData.bmi < 18.0 || (patient.gender.toLowerCase() === "male" ? bodyCompositionData.muscle_percent > 52 : bodyCompositionData.muscle_percent > 42) ? "Slim/Lean (Ectomorph-like)" :
+                    (bodyCompositionData.bmi >= 18.0 && bodyCompositionData.bmi <= 22.9 && (patient.gender.toLowerCase() === "male" ? bodyCompositionData.fat_percent <= 20 : bodyCompositionData.fat_percent <= 30)) ? "Athletic/Balanced (Mesomorph-like)" :
+                    "Rounded/Strong (Endomorph-like)"
+                  ) : "N/A"}.{" "}
+                  {bodyCompositionData ? (
+                    bodyCompositionData.bmi < 18.0 || (patient.gender.toLowerCase() === "male" ? bodyCompositionData.muscle_percent > 52 : bodyCompositionData.muscle_percent > 42) ? "Your fast metabolism benefits from high-calorie, nutrient-dense foods and strength training." :
+                    (bodyCompositionData.bmi >= 18.0 && bodyCompositionData.bmi <= 22.9 && (patient.gender.toLowerCase() === "male" ? bodyCompositionData.fat_percent <= 20 : bodyCompositionData.fat_percent <= 30)) ? "Your balanced physique thrives on a mix of cardio and strength training." :
+                    "Your strong build benefits from calorie control and regular cardio to optimize metabolism."
+                  ) : "Please provide complete data for body type advice."}
+                </li>
+                <li>
+                  <strong>Goals:</strong>{" "}
+                  {bodyCompositionData ? (
+                    <>
+                      {bodyCompositionData.weight_control > 0 ? `Gain ${bodyCompositionData.weight_control.toFixed(1)} kg with a high-protein diet and strength training.` :
+                       bodyCompositionData.weight_control < 0 ? `Reduce ${Math.abs(bodyCompositionData.weight_control).toFixed(1)} kg with cardio and portion control.` :
+                       "Maintain your current weight with a balanced diet."}{" "}
+                      {bodyCompositionData.fat_control > 0 ? `Increase healthy fat intake slightly with foods like avocados.` :
+                       bodyCompositionData.fat_control < 0 ? `Reduce ${Math.abs(bodyCompositionData.fat_control).toFixed(1)} kg of fat with 3-4 weekly cardio sessions.` :
+                       "Maintain body fat with a mix of cardio and strength training."}{" "}
+                      {bodyCompositionData.muscle_control > 0 ? `Gain ${bodyCompositionData.muscle_control.toFixed(1)} kg of muscle with strength training ${patient.age < 40 ? "3-4 times" : "2-3 times"} a week.` :
+                       bodyCompositionData.muscle_control < 0 ? `Maintain muscle mass with moderate resistance exercises.` :
+                       "Sustain muscle mass with regular resistance workouts."}
+                    </>
+                  ) : "Please provide complete data to set personalized goals."}
+                </li>
+                <li>
+                  <strong>Motivational Note:</strong> Your unique body is on a journey to better health! Stay consistent with exercise and a tailored diet to reach your goals.
+                </li>
+              </ul>
+            </section>
+
+            <section ref={referenceRef} className="mt-8 px-8 pb-8">
+              <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
+                Body Composition Reference Guide
+              </h3>
+              <div className="text-gray-700 text-sm">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border p-2 text-left">Metric</th>
+                      <th className="border p-2 text-left">Men</th>
+                      <th className="border p-2 text-left">Women</th>
+                      <th className="border p-2 text-left">Formula/Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border p-2">BMI</td>
+                      <td className="border p-2">Underweight: &lt;18.0<br />Normal: 18.0–22.9<br />Overweight: 23–24.9<br />Obese: ≥25</td>
+                      <td className="border p-2">Same</td>
+                      <td className="border p-2">Weight (kg) ÷ [Height (m)]²</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Body Fat %</td>
+                      <td className="border p-2">Essential: 2–5%<br />Athletes: 6–13%<br />Fitness: 14–17%<br />Standard: 18–24%<br />Overfat: ≥25%</td>
+                      <td className="border p-2">Essential: 10–13%<br />Athletes: 14–20%<br />Fitness: 21–24%<br />Standard: 25–31%<br />Overfat: ≥32%</td>
+                      <td className="border p-2">Bioelectrical impedance-based</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Subcutaneous Fat %</td>
+                      <td className="border p-2">Athletes: 6–12%<br />Standard: 13–20%<br />High: 21–30%<br />Very High: &gt;30%</td>
+                      <td className="border p-2">Athletes: 16–22%<br />Standard: 23–30%<br />High: 31–40%<br />Very High: &gt;40%</td>
+                      <td className="border p-2">Body Weight × Subcutaneous Fat % ÷ 100</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Muscle %</td>
+                      <td className="border p-2">Low: &lt;33%<br />Standard: 33–39%<br />Athletic: &gt;39%</td>
+                      <td className="border p-2">Low: &lt;24%<br />Standard: 24–30%<br />Athletic: &gt;30%</td>
+                      <td className="border p-2">Body Weight × Muscle % ÷ 100</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Body Water %</td>
+                      <td className="border p-2">Low: &lt;55%<br />Standard: 55–65%<br />High: &gt;65%</td>
+                      <td className="border p-2">Low: &lt;45%<br />Standard: 45–60%<br />High: &gt;60%</td>
+                      <td className="border p-2">Bioelectrical impedance-based</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Bone %</td>
+                      <td className="border p-2">Low: &lt;12%<br />Standard: 12–15%<br />High: &gt;15%</td>
+                      <td className="border p-2">Same</td>
+                      <td className="border p-2">Body Weight × Bone % ÷ 100</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Protein %</td>
+                      <td className="border p-2">Low: &lt;16%<br />Standard: 16–20%<br />Athletic: &gt;20%</td>
+                      <td className="border p-2">Same</td>
+                      <td className="border p-2">Body Weight × Protein % ÷ 100</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Visceral Fat Level</td>
+                      <td className="border p-2">Normal: 1–9<br />High: 10–14<br />Very High: ≥15</td>
+                      <td className="border p-2">Same</td>
+                      <td className="border p-2">Visceral Fat Mass: Body Fat Mass × 0.15</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Ideal Body Weight</td>
+                      <td className="border p-2">50 kg + 2.3 kg/inch over 5 ft</td>
+                      <td className="border p-2">45.5 kg + 2.3 kg/inch over 5 ft</td>
+                      <td className="border p-2">Devine formula</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Body Score</td>
+                      <td className="border p-2">Very Good: 80<br />Average: 60–80<br />Needs Improvement: &lt;60</td>
+                      <td className="border p-2">Same</td>
+                      <td className="border p-2">Composite health score</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">FFMI</td>
+                      <td className="border p-2">Needs Boost: &lt;17<br />Standard: 17–25<br />Athletic: &gt;25</td>
+                      <td className="border p-2">Needs Boost: &lt;14<br />Standard: 14–20<br />Athletic: &gt;20</td>
+                      <td className="border p-2">Fat-Free Mass ÷ Height²</td>
+                    </tr>
+                    <tr>
+                      <td className="border p-2">Impedance</td>
+                      <td className="border p-2" colSpan="2">Higher muscle/water: lower impedance<br />Higher fat: higher impedance</td>
+                      <td className="border p-2">Varies by height, hydration, body size</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="mt-4">
+                  <h4 className="text-lg font-medium text-gray-800 mb-2">Classifications</h4>
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border p-2 text-left">Metric</th>
+                        <th className="border p-2 text-left">Men</th>
+                        <th className="border p-2 text-left">Women</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="border p-2">Weight</td>
+                        <td className="border p-2">Standard: 50–90 kg<br />Else: Out of Range</td>
+                        <td className="border p-2">Standard: 40–80 kg<br />Else: Out of Range</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">BMI</td>
+                        <td className="border p-2">Standard: 18.5–24.9<br />Else: Needs Boost</td>
+                        <td className="border p-2">Same</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Body Fat %</td>
+                        <td className="border p-2">Athletic: &lt;6%<br />Excellent: 6–13%<br />Standard: 14–20%<br />Needs Boost: &gt;20%</td>
+                        <td className="border p-2">Athletic: &lt;14%<br />Excellent: 14–20%<br />Standard: 21–30%<br />Needs Boost: &gt;30%</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Subcutaneous Fat %</td>
+                        <td className="border p-2">Athletic: &lt;10%<br />Standard: 10–20%<br />Needs Boost: &gt;20%</td>
+                        <td className="border p-2">Athletic: &lt;15%<br />Standard: 15–25%<br />Needs Boost: &gt;25%</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Muscle %</td>
+                        <td className="border p-2">Needs Boost: &lt;33%<br />Standard: 33–52%<br />Athletic: &gt;52%</td>
+                        <td className="border p-2">Needs Boost: &lt;24%<br />Standard: 24–42%<br />Athletic: &gt;42%</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Muscle Mass</td>
+                        <td className="border p-2">Needs Boost: &lt;35 kg<br />Standard: 35–50 kg<br />Athletic: &gt;50 kg</td>
+                        <td className="border p-2">Needs Boost: &lt;25 kg<br />Standard: 25–40 kg<br />Athletic: &gt;40 kg</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Skeletal Muscle %</td>
+                        <td className="border p-2">Needs Boost: &lt;23%<br />Standard: 23–36%<br />Athletic: &gt;36%</td>
+                        <td className="border p-2">Needs Boost: &lt;17%<br />Standard: 17–29%<br />Athletic: &gt;29%</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Body Water %</td>
+                        <td className="border p-2">Standard: 50–65%<br />Else: Needs Boost</td>
+                        <td className="border p-2">Standard: 45–60%<br />Else: Needs Boost</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Bone Mass</td>
+                        <td className="border p-2">Needs Boost: &lt;2.5 kg<br />Standard: 2.5–4.0 kg<br />Athletic: &gt;4.0 kg</td>
+                        <td className="border p-2">Needs Boost: &lt;2.0 kg<br />Standard: 2.0–3.5 kg<br />Athletic: &gt;3.5 kg</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Protein %</td>
+                        <td className="border p-2">Needs Boost: &lt;15%<br />Standard: 15–20%<br />Athletic: &gt;20%</td>
+                        <td className="border p-2">Needs Boost: &lt;12%<br />Standard: 12–18%<br />Athletic: &gt;18%</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Protein Mass</td>
+                        <td className="border p-2">Needs Boost: &lt;12 kg<br />Standard: 12–18 kg<br />Athletic: &gt;18 kg</td>
+                        <td className="border p-2">Needs Boost: &lt;10 kg<br />Standard: 10–15 kg<br />Athletic: &gt;15 kg</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Visceral Fat Level</td>
+                        <td className="border p-2">Athletic: ≤9<br />Standard: 10–12<br />Needs Boost: &gt;12</td>
+                        <td className="border p-2">Same</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">BMR</td>
+                        <td className="border p-2">Needs Boost: &lt;1600 kcal<br />Standard: 1600–2200 kcal<br />Athletic: &gt;2200 kcal</td>
+                        <td className="border p-2">Needs Boost: &lt;1200 kcal<br />Standard: 1200–1800 kcal<br />Athletic: &gt;1800 kcal</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Metabolic Age</td>
+                        <td className="border p-2">Younger: &lt;Age - 5<br />Standard: ±5 years<br />Older: &gt;Age + 5</td>
+                        <td className="border p-2">Same</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Body Surface Area</td>
+                        <td className="border p-2">Needs Boost: &lt;1.7 m²<br />Standard: 1.7–2.2 m²<br />Athletic: &gt;2.2 m²</td>
+                        <td className="border p-2">Needs Boost: &lt;1.5 m²<br />Standard: 1.5–1.9 m²<br />Athletic: &gt;1.9 m²</td>
+                      </tr>
+                      <tr>
+                        <td className="border p-2">Weight/Fat/Muscle Control</td>
+                        <td className="border p-2" colSpan="2">Positive: Gain x kg<br />Negative: Reduce x kg<br />Zero: Standard</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="mt-4">
+                    <strong>Corrections/Comments:</strong> BMI formula: Weight (kg) ÷ [Height (m)]². All ranges align with Indian standards and WHO guidelines.
+                  </p>
                 </div>
-              </section>
-            )}
+              </div>
+            </section>
+
             <footer className="text-center text-xs text-gray-400 mt-12 pt-4 border-t">
               <p>
                 This report is for informational purposes only and is not a
                 substitute for professional medical advice, diagnosis, or
                 treatment.
               </p>
-              <p>
-                &copy; {new Date().getFullYear()} Reliv. All rights reserved.
-              </p>
+              <p>&copy; {new Date().getFullYear()} Reliv. All rights reserved.</p>
               {ecoStats && (
                 <p className="mt-2">
                   Fun Fact: Your digital choice saved ~
                   {ecoStats.individual.water}L of water & ~
-                  {ecoStats.individual.co2}g of CO2. Collectively, our users
-                  have saved ~{ecoStats.total.water}L of water, ~
-                  {ecoStats.total.co2}g of CO2, and ~{ecoStats.total.paper}{" "}
-                  sheets of paper!
+                  {ecoStats.individual.co2}g of CO2. Collectively, our users have
+                  saved ~{ecoStats.total.water}L of water, ~
+                  {ecoStats.total.co2}g of CO2, and ~{ecoStats.total.paper} sheets
+                  of paper!
                 </p>
               )}
             </footer>
@@ -932,17 +1154,11 @@ function Report({ inputs, onInputChange }) {
             {isSpeaking ? "Stop Reading" : "Read Report Aloud"}
           </button>
           <button
-            onClick={handleSendEmail}
-            disabled={sendingTo !== null || !patient.email}
+            onClick={handleSendFullEmail}
+            disabled={sending || !patient.email}
             className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sendingTo === "patient" ? "Sending..." : "Email My Report"}
-          </button>
-          <button
-            onClick={handleDownloadPdf}
-            className="bg-gray-700 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105"
-          >
-            Download PDF
+            {sending ? "Sending..." : "Email Full Report"}
           </button>
           <button
             onClick={() => navigate("/")}
@@ -951,48 +1167,12 @@ function Report({ inputs, onInputChange }) {
             Home
           </button>
         </div>
-
-        <div className="mt-8 border-t pt-6 max-w-md mx-auto">
-          <h4 className="text-lg font-semibold text-center text-gray-700 mb-4">
-            Share Report with a Doctor
-          </h4>
-          <div className="flex flex-col items-center gap-3">
-            <input
-              type="email"
-              name="doctorEmail"
-              value={doctorEmail}
-              onChange={(e) => {
-                setDoctorEmail(e.target.value);
-                if (onInputChange) onInputChange("doctorEmail", e.target.value);
-              }}
-              placeholder="Enter doctor's email address"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              aria-label="Doctor's email"
-            />
-            <button
-              onClick={handleSendToDoctor}
-              disabled={sendingTo !== null || !doctorEmail}
-              className="w-full bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sendingTo === "doctor" ? "Sending..." : "Send PDF to Doctor"}
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* Conditionally render the animation overlay */}
       {showCleansing && (
         <UVCleansingAnimation onComplete={() => navigate("/")} />
       )}
     </div>
-  );
-}
-
-export default function ReportWrapper() {
-  return (
-    <KeyboardWrapper>
-      <Report />
-    </KeyboardWrapper>
   );
 }
 
