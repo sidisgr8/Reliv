@@ -113,10 +113,8 @@ const AdminPanel = ({
   handleAdminToggle,
 }) => {
   const [showForgot, setShowForgot] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
   const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "ramanoswal13@gmail.com");
   const [resetStage, setResetStage] = useState("request");
-  const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isRunMode, setIsRunMode] = useState(() => localStorage.getItem("paymentMode") === "run");
 
@@ -181,18 +179,18 @@ const AdminPanel = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 email: adminEmail,
-                token: verificationCodeInput.trim(),
-                newPassword: newPassword,
+                token: inputs.verificationCodeInput.trim(),
+                newPassword: inputs.newPassword,
             }),
         });
         const data = await res.json();
         if (res.ok) {
-            localStorage.setItem("adminPassword_v1", newPassword);
+            localStorage.setItem("adminPassword_v1", inputs.newPassword);
             alert("Password has been reset successfully!");
             setShowForgot(false);
             setResetStage("request");
-            setVerificationCodeInput("");
-            setNewPassword("");
+            onInputChange("verificationCodeInput", "");
+            onInputChange("newPassword", "");
             setStatusMessage("");
         } else {
             throw new Error(data.message || "Failed to reset password.");
@@ -444,7 +442,7 @@ const AdminPanel = ({
                       <label className="text-xs text-gray-600">Name</label>
                       <input
                         name={`kit-name-${kit.id}`}
-                        value={inputs[`kit-name-${kit.id}`] || kit.name}
+                        value={inputs.hasOwnProperty(`kit-name-${kit.id}`) ? inputs[`kit-name-${kit.id}`] : kit.name}
                         onChange={(e) => onInputChange(`kit-name-${kit.id}`, e.target.value)}
                         onBlur={(e) => handleUpdateKitField(kit.id, "name", e.target.value)}
                         className="w-full rounded-md border px-2 py-1"
@@ -454,7 +452,7 @@ const AdminPanel = ({
                       <label className="text-xs text-gray-600">Description</label>
                       <input
                         name={`kit-description-${kit.id}`}
-                        value={inputs[`kit-description-${kit.id}`] || kit.description}
+                        value={inputs.hasOwnProperty(`kit-description-${kit.id}`) ? inputs[`kit-description-${kit.id}`] : kit.description}
                         onChange={(e) => onInputChange(`kit-description-${kit.id}`, e.target.value)}
                         onBlur={(e) => handleUpdateKitField(kit.id, "description", e.target.value)}
                         className="w-full rounded-md border px-2 py-1"
@@ -465,7 +463,7 @@ const AdminPanel = ({
                       <input
                         type="number"
                         name={`kit-price-${kit.id}`}
-                        value={inputs[`kit-price-${kit.id}`] || kit.price}
+                        value={inputs.hasOwnProperty(`kit-price-${kit.id}`) ? inputs[`kit-price-${kit.id}`] : kit.price}
                         onChange={(e) => onInputChange(`kit-price-${kit.id}`, e.target.value)}
                         onBlur={(e) => handleUpdateKitField(kit.id, "price", Number(e.target.value))}
                         className="w-full rounded-md border px-2 py-1"
@@ -476,7 +474,7 @@ const AdminPanel = ({
                       <input
                         type="number"
                         name={`kit-quantity-${kit.id}`}
-                        value={inputs[`kit-quantity-${kit.id}`] || kit.quantity}
+                        value={inputs.hasOwnProperty(`kit-quantity-${kit.id}`) ? inputs[`kit-quantity-${kit.id}`] : kit.quantity}
                         onChange={(e) => onInputChange(`kit-quantity-${kit.id}`, e.target.value)}
                         onBlur={(e) => handleUpdateKitField(kit.id, "quantity", Number(e.target.value))}
                         className="w-full rounded-md border px-2 py-1"
@@ -487,7 +485,7 @@ const AdminPanel = ({
                       <input
                         type="date"
                         name={`kit-expiryDate-${kit.id}`}
-                        value={inputs[`kit-expiryDate-${kit.id}`] || kit.expiryDate}
+                        value={inputs.hasOwnProperty(`kit-expiryDate-${kit.id}`) ? inputs[`kit-expiryDate-${kit.id}`] : kit.expiryDate}
                         onChange={(e) => onInputChange(`kit-expiryDate-${kit.id}`, e.target.value)}
                         onBlur={(e) => handleUpdateKitField(kit.id, "expiryDate", e.target.value)}
                         className="w-full rounded-md border px-2 py-1"
