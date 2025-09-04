@@ -280,7 +280,8 @@ export default function Report() {
   const navigate = useNavigate();
   const location = useLocation();
   const { patient, vitals } = data;
-  const [sending, setSending] = useState(false);
+  const [isSendingMyReport, setIsSendingMyReport] = useState(false);
+  const [isSendingDoctorReport, setIsSendingDoctorReport] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showCleansing, setShowCleansing] = useState(false);
   const [ecoStats, setEcoStats] = useState(null);
@@ -288,7 +289,6 @@ export default function Report() {
   const referenceRef = useRef();
   const stockUpdated = useRef(false);
   const [history, setHistory] = useState([]);
-  const [showDoctorEmailInput, setShowDoctorEmailInput] = useState(false);
   const [doctorEmail, setDoctorEmail] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [keyboardInputName, setKeyboardInputName] = useState("");
@@ -517,12 +517,12 @@ export default function Report() {
     return canvas.toDataURL("image/png");
   };
 
-  const handleSendFullEmail = async (targetEmail) => {
-    if (!targetEmail) {
-      alert("Please provide an email address.");
+  const handleSendMyReport = async () => {
+    if (!patient.email) {
+      alert("Patient email is not available.");
       return;
     }
-    setSending(true);
+    setIsSendingMyReport(true);
     const imgData = await captureReport();
 
     try {
@@ -530,30 +530,57 @@ export default function Report() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: targetEmail,
+          to: patient.email,
           name: patient.name,
           healthData: data,
           reportImage: imgData,
-          isPersonalized: false,
         }),
       });
       const result = await res.json();
       if (result.ok) {
-        if (targetEmail === patient.email) {
-            setShowCleansing(true);
-        } else {
-            alert(`Report successfully sent to ${targetEmail}`);
-            setShowDoctorEmailInput(false);
-            setDoctorEmail("");
-        }
+        setShowCleansing(true);
       } else {
-        alert("Could not send email. Please try again.");
+        alert("Could not send your report. Please try again.");
       }
     } catch (error) {
-      console.error("Failed to send email:", error);
-      alert("An error occurred. Please check the server logs.");
+      console.error("Failed to send patient email:", error);
+      alert("An error occurred while sending your report.");
     } finally {
-      setSending(false);
+      setIsSendingMyReport(false);
+    }
+  };
+
+  const handleSendDoctorReport = async () => {
+    if (!doctorEmail) {
+      alert("Please provide the doctor's email address.");
+      return;
+    }
+    setIsSendingDoctorReport(true);
+    const imgData = await captureReport();
+    
+    try {
+      const res = await fetch("http://localhost:5000/api/send-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: doctorEmail,
+          name: patient.name,
+          healthData: data,
+          reportImage: imgData,
+        }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        alert(`Report successfully sent to ${doctorEmail}`);
+        setDoctorEmail("");
+      } else {
+        alert("Could not send the report to the doctor. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to send doctor email:", error);
+      alert("An error occurred while sending the report.");
+    } finally {
+      setIsSendingDoctorReport(false);
     }
   };
 
@@ -1180,17 +1207,11 @@ export default function Report() {
             {isSpeaking ? "Stop Reading" : "Read Report Aloud"}
           </button>
           <button
-            onClick={() => handleSendFullEmail(patient.email)}
-            disabled={sending || !patient.email}
+            onClick={handleSendMyReport}
+            disabled={isSendingMyReport || !patient.email}
             className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sending ? "Sending..." : "Email My Report"}
-          </button>
-          <button
-            onClick={() => setShowDoctorEmailInput(!showDoctorEmailInput)}
-            className="bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105"
-          >
-            Send to Doctor
+            {isSendingMyReport ? "Sending..." : "Email My Report"}
           </button>
           <button
             onClick={() => navigate("/")}
@@ -1199,26 +1220,25 @@ export default function Report() {
             Home
           </button>
         </div>
-        {showDoctorEmailInput && (
-          <div className="mt-4 flex justify-center items-center gap-2">
+        
+        <div className="mt-6 text-center">
             <input
               type="email"
               name="doctorEmail"
               value={doctorEmail}
               onChange={e => setDoctorEmail(e.target.value)}
               onFocus={handleInputFocus}
-              placeholder="Doctor's Email"
-              className="border rounded-lg px-3 py-2 w-64"
+              placeholder="Enter Doctor's Email..."
+              className="border rounded-lg px-4 py-3 w-full max-w-sm mx-auto shadow-sm focus:ring-2 focus:ring-orange-400"
             />
-            <button
-              onClick={() => handleSendFullEmail(doctorEmail)}
-              disabled={sending || !doctorEmail}
-              className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 disabled:opacity-50"
-            >
-              Send
-            </button>
-          </div>
-        )}
+             <button
+            onClick={handleSendDoctorReport}
+            disabled={isSendingDoctorReport || !doctorEmail}
+            className="mt-4 bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105 disabled:opacity-50"
+          >
+            {isSendingDoctorReport ? "Sending..." : "Send to Doctor"}
+          </button>
+        </div>
       </div>
 
       {showCleansing && (
