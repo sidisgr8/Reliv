@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "../components/Logo";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import PrimaryButton from "../components/PrimaryButton";
+import { KeyboardWrapper } from "../components/KeyboardWrapper";
 
 // --- Default Data ---
 const defaultKits = [
@@ -102,75 +103,15 @@ const KitCard = ({ kit, onAddToCart }) => {
   );
 };
 
-// --- Main Component with Admin Panel ---
-export default function MedicineDispensingWithAdmin() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { fromPaymentGate, cart: cartFromPrevPage } = location.state || {};
-
-  const [medicalKits, setMedicalKits] = useState(() => {
-    try {
-      const raw = localStorage.getItem("medicalKits_v1");
-      return raw ? JSON.parse(raw) : defaultKits;
-    } catch (e) {
-      return defaultKits;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("medicalKits_v1", JSON.stringify(medicalKits));
-  }, [medicalKits]);
-  
-    const { activeKits, expiredKits } = useMemo(() => {
-    const today = new Date();
-    const active = [];
-    const expired = [];
-    medicalKits.forEach(kit => {
-      if (new Date(kit.expiryDate) < today) {
-        expired.push(kit);
-      } else {
-        active.push(kit);
-      }
-    });
-    return { activeKits: active, expiredKits: expired };
-  }, [medicalKits]);
-
-
-  const [cart, setCart] = useState(cartFromPrevPage || []);
-
-  const handleAddToCart = (kitToAdd) => {
-    const existingCartItem = cart.find((item) => item.id === kitToAdd.id);
-    const currentQuantityInCart = existingCartItem ? existingCartItem.quantity : 0;
-  
-    if (currentQuantityInCart >= kitToAdd.quantity) {
-      alert(`You cannot add more than the available stock of ${kitToAdd.quantity}.`);
-      return;
-    }
-  
-    setCart((prevCart) => {
-      if (existingCartItem) {
-        return prevCart.map((item) =>
-          item.id === kitToAdd.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prevCart, { ...kitToAdd, quantity: 1 }];
-    });
-  };
-
-  const { totalItems, totalPrice } = useMemo(() => {
-    const items = cart.reduce((sum, item) => sum + item.quantity, 0);
-    const price = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    return { totalItems: items, totalPrice: price };
-  }, [cart]);
-
-  const handleCheckout = () => {
-    navigate("/checkout", { state: { cart, totalPrice, fromPaymentGate } });
-  };
-
-  // --- Admin Panel State ---
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
+const AdminPanel = ({
+  inputs,
+  onInputChange,
+  isAuthenticated,
+  setIsAuthenticated,
+  medicalKits,
+  setMedicalKits,
+  handleAdminToggle,
+}) => {
   const [showForgot, setShowForgot] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [adminEmail, setAdminEmail] = useState(() => localStorage.getItem("adminEmail_v1") || "ramanoswal13@gmail.com");
@@ -179,31 +120,15 @@ export default function MedicineDispensingWithAdmin() {
   const [statusMessage, setStatusMessage] = useState("");
   const [isRunMode, setIsRunMode] = useState(() => localStorage.getItem("paymentMode") === "run");
 
-  useEffect(() => {
-    if (!localStorage.getItem("adminPassword_v1")) localStorage.setItem("adminPassword_v1", "admin123");
-    if (!localStorage.getItem("adminEmail_v1")) localStorage.setItem("adminEmail_v1", "ramanoswal13@gmail.com");
-  }, []);
-
-  const handleAdminToggle = () => {
-    setIsAdminOpen((s) => !s);
-    setIsAuthenticated(false);
-    setPasswordInput("");
-    setShowForgot(false);
-    setNewPassword("");
-    setResetStage("request");
-    setVerificationCodeInput("");
-    setStatusMessage("");
-  };
-
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     const emailForLogin = localStorage.getItem("adminEmail_v1") || "ramanoswal13@gmail.com";
-    
+
     if (!navigator.onLine || window.location.hostname === 'localhost') {
         const storedPassword = localStorage.getItem("adminPassword_v1") || "admin123";
-        if (passwordInput === storedPassword) {
+        if (inputs.passwordInput === storedPassword) {
             setIsAuthenticated(true);
-            setPasswordInput("");
+            onInputChange("passwordInput", "");
             return;
         }
     }
@@ -212,11 +137,11 @@ export default function MedicineDispensingWithAdmin() {
         const res = await fetch("/api/check-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailForLogin, password: passwordInput }),
+            body: JSON.stringify({ email: emailForLogin, password: inputs.passwordInput }),
         });
         if (res.ok) {
             setIsAuthenticated(true);
-            setPasswordInput("");
+            onInputChange("passwordInput", "");
         } else {
             const data = await res.json();
             throw new Error(data.message || "Incorrect password");
@@ -277,11 +202,6 @@ export default function MedicineDispensingWithAdmin() {
     }
   };
 
-  const handleSaveAdminEmail = () => {
-    localStorage.setItem("adminEmail_v1", adminEmail || "");
-    alert("Admin email saved.");
-  };
-
   const handleModeToggle = () => {
     const newMode = !isRunMode;
     setIsRunMode(newMode);
@@ -289,7 +209,6 @@ export default function MedicineDispensingWithAdmin() {
     alert(`Payment mode set to ${newMode ? "Run Mode" : "Test Mode"}.`);
   };
 
-  // --- Admin kit operations ---
   const handleUpdateKitField = (id, field, value) => {
     setMedicalKits((prev) => prev.map((k) => (k.id === id ? { ...k, [field]: value } : k)));
   };
@@ -322,37 +241,375 @@ export default function MedicineDispensingWithAdmin() {
     reader.readAsDataURL(file);
   };
 
-    // =================================================================
-  // === NEW: GOOGLE DRIVE API HANDLER ===============================
-  // =================================================================
   const handleGdriveUrl = async (kitId, url) => {
-  if (!url || !url.includes("drive.google.com")) {
-    return; // Not a GDrive link
-  }
-  try {
-    const regex = /drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/;
-    const match = url.match(regex);
-    if (!match || !match[1]) {
-      alert("Could not extract file ID. Please use a valid Google Drive shareable link.");
+    if (!url || !url.includes("drive.google.com")) {
       return;
     }
-    const fileId = match[1];
+    try {
+      const regex = /drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/;
+      const match = url.match(regex);
+      if (!match || !match[1]) {
+        alert("Could not extract file ID. Please use a valid Google Drive shareable link.");
+        return;
+      }
+      const fileId = match[1];
 
-    // Call our new backend endpoint
-    const response = await fetch(`/api/gdrive-image/${fileId}`);
-    const data = await response.json();
+      const response = await fetch(`/api/gdrive-image/${fileId}`);
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch image.');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch image.');
+      }
+
+      handleUpdateKitField(kitId, "imageUrl", data.imageUrl);
+
+    } catch (error) {
+      console.error("Error fetching GDrive image:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+  const { activeKits, expiredKits } = useMemo(() => {
+    const today = new Date();
+    const active = [];
+    const expired = [];
+    medicalKits.forEach(kit => {
+      if (new Date(kit.expiryDate) < today) {
+        expired.push(kit);
+      } else {
+        active.push(kit);
+      }
+    });
+    return { activeKits: active, expiredKits: expired };
+  }, [medicalKits]);
+
+
+  return (
+    <div className="fixed inset-0 flex items-start justify-center pt-20 px-4" style={{ zIndex: 9999 }}>
+      <div className="absolute inset-0 bg-black/40" onClick={handleAdminToggle} style={{ zIndex: 9998 }}></div>
+      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto" style={{ zIndex: 9999 }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Admin Panel</h2>
+          <button onClick={handleAdminToggle} className="text-gray-600">Close</button>
+        </div>
+        {!isAuthenticated ? (
+          <div>
+            {!showForgot ? (
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <input
+                  type="password"
+                  name="passwordInput"
+                  value={inputs.passwordInput || ""}
+                  onChange={(e) => onInputChange("passwordInput", e.target.value)}
+                  className="w-full rounded-md border px-3 py-2"
+                  placeholder="Enter admin password"
+                />
+                <div className="flex items-center justify-between gap-4">
+                  <PrimaryButton type="submit">Log in</PrimaryButton>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgot(true);
+                      setResetStage("request");
+                      setAdminEmail(localStorage.getItem("adminEmail_v1") || "");
+                    }}
+                    className="text-sm text-blue-600"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Login is now handled by the server. The default password is{" "}
+                  <span className="font-mono">admin123</span> and the default email is{" "}
+                  <span className="font-mono">ramanoswal13@gmail.com</span>
+                </p>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {resetStage === "request" ? (
+                  <form onSubmit={requestPasswordReset} className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Registered Admin Email
+                    </label>
+                    <input
+                      value="ramanoswal13@gmail.com"
+                      readOnly
+                      className="w-full rounded-md border px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                    />
+                    <div className="flex items-center gap-4">
+                      <PrimaryButton type="submit">Send recovery email</PrimaryButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgot(false);
+                          setResetStage("request");
+                        }}
+                        className="text-sm text-gray-600"
+                      >
+                        Back to login
+                      </button>
+                    </div>
+                    {statusMessage && <p className="text-xs text-gray-600">{statusMessage}</p>}
+                  </form>
+                ) : resetStage === "verify" ? (
+                  <form onSubmit={verifyAndResetPassword} className="space-y-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Recovery Code
+                    </label>
+                    <input
+                      name="verificationCodeInput"
+                      value={inputs.verificationCodeInput || ""}
+                      onChange={(e) => onInputChange("verificationCodeInput", e.target.value)}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="Enter the code you received via email"
+                    />
+                    <label className="block text-sm font-medium text-gray-700">
+                      New password
+                    </label>
+                    <input
+                      type="password"
+                      name="newPassword"
+                      value={inputs.newPassword || ""}
+                      onChange={(e) => onInputChange("newPassword", e.target.value)}
+                      className="w-full rounded-md border px-3 py-2"
+                      placeholder="Set a new password"
+                    />
+                    <div className="flex items-center gap-4">
+                      <PrimaryButton type="submit">Reset password</PrimaryButton>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowForgot(false);
+                          setResetStage("request");
+                        }}
+                        className="text-sm text-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {statusMessage && <p className="text-xs text-red-500">{statusMessage}</p>}
+                  </form>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-semibold">Inventory</h3>
+                <button
+                  onClick={handleAddNewKit}
+                  className="text-sm px-3 py-1 rounded-full border"
+                >
+                  + New kit
+                </button>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm font-medium ${!isRunMode ? 'text-orange-500' : 'text-gray-500'}`}>Test Mode</span>
+                  <button
+                    onClick={handleModeToggle}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isRunMode ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isRunMode ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                  <span className={`text-sm font-medium ${isRunMode ? 'text-green-500' : 'text-gray-500'}`}>Run Mode</span>
+                </div>
+                <PrimaryButton
+                  onClick={() => {
+                    setIsAuthenticated(false);
+                    alert("Logged out");
+                  }}
+                >
+                  Log out
+                </PrimaryButton>
+              </div>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-auto pr-2">
+              {activeKits.map((kit) => (
+                <div
+                  key={kit.id}
+                  className="border rounded-xl p-3 flex gap-4 items-start"
+                >
+                  <img
+                    src={kit.imageUrl}
+                    alt=""
+                    className="w-20 h-20 object-cover rounded-md"
+                  />
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center">
+                    <div className="md:col-span-1">
+                      <label className="text-xs text-gray-600">Name</label>
+                      <input
+                        name={`kit-name-${kit.id}`}
+                        value={inputs[`kit-name-${kit.id}`] || kit.name}
+                        onChange={(e) => onInputChange(`kit-name-${kit.id}`, e.target.value)}
+                        onBlur={(e) => handleUpdateKitField(kit.id, "name", e.target.value)}
+                        className="w-full rounded-md border px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Description</label>
+                      <input
+                        name={`kit-description-${kit.id}`}
+                        value={inputs[`kit-description-${kit.id}`] || kit.description}
+                        onChange={(e) => onInputChange(`kit-description-${kit.id}`, e.target.value)}
+                        onBlur={(e) => handleUpdateKitField(kit.id, "description", e.target.value)}
+                        className="w-full rounded-md border px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Price (₹)</label>
+                      <input
+                        type="number"
+                        name={`kit-price-${kit.id}`}
+                        value={inputs[`kit-price-${kit.id}`] || kit.price}
+                        onChange={(e) => onInputChange(`kit-price-${kit.id}`, e.target.value)}
+                        onBlur={(e) => handleUpdateKitField(kit.id, "price", Number(e.target.value))}
+                        className="w-full rounded-md border px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Quantity</label>
+                      <input
+                        type="number"
+                        name={`kit-quantity-${kit.id}`}
+                        value={inputs[`kit-quantity-${kit.id}`] || kit.quantity}
+                        onChange={(e) => onInputChange(`kit-quantity-${kit.id}`, e.target.value)}
+                        onBlur={(e) => handleUpdateKitField(kit.id, "quantity", Number(e.target.value))}
+                        className="w-full rounded-md border px-2 py-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600">Expiry</label>
+                      <input
+                        type="date"
+                        name={`kit-expiryDate-${kit.id}`}
+                        value={inputs[`kit-expiryDate-${kit.id}`] || kit.expiryDate}
+                        onChange={(e) => onInputChange(`kit-expiryDate-${kit.id}`, e.target.value)}
+                        onBlur={(e) => handleUpdateKitField(kit.id, "expiryDate", e.target.value)}
+                        className="w-full rounded-md border px-2 py-1"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-600">Image</label>
+                      <input
+                        type="text"
+                        placeholder="Paste Google Drive Share Link"
+                        onBlur={(e) => handleGdriveUrl(kit.id, e.target.value)}
+                        className="w-full rounded-md border px-2 py-1 text-xs"
+                      />
+                      <span className="text-xs text-gray-500 text-center">or upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(kit.id, e.target.files[0])}
+                        className="text-xs"
+                      />
+                      <button
+                        onClick={() => handleDeleteKit(kit.id)}
+                        className="text-sm px-3 py-1 rounded-md border text-red-600 mt-2"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {expiredKits.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-red-600">Expired Kits</h3>
+                <div className="space-y-2 mt-2">
+                  {expiredKits.map(kit => (
+                    <div key={kit.id} className="border rounded-xl p-3 flex gap-4 items-center bg-red-50">
+                      <img src={kit.imageUrl} alt="" className="w-16 h-16 object-cover rounded-md opacity-50" />
+                      <div className="flex-1 text-sm">
+                        <p className="font-bold">{kit.name}</p>
+                        <p className="text-gray-600">Expired on: {kit.expiryDate}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteKit(kit.id)}
+                        className="text-sm px-3 py-1 rounded-md border text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-3">
+              Changes are saved locally and reflected in real-time on the main page.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+// --- Main Component with Admin Panel ---
+export default function MedicineDispensingWithAdmin() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { fromPaymentGate, cart: cartFromPrevPage } = location.state || {};
+
+  const [medicalKits, setMedicalKits] = useState(() => {
+    try {
+      const raw = localStorage.getItem("medicalKits_v1");
+      return raw ? JSON.parse(raw) : defaultKits;
+    } catch (e) {
+      return defaultKits;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("medicalKits_v1", JSON.stringify(medicalKits));
+  }, [medicalKits]);
+
+  const [cart, setCart] = useState(cartFromPrevPage || []);
+
+  const handleAddToCart = (kitToAdd) => {
+    const existingCartItem = cart.find((item) => item.id === kitToAdd.id);
+    const currentQuantityInCart = existingCartItem ? existingCartItem.quantity : 0;
+
+    if (currentQuantityInCart >= kitToAdd.quantity) {
+      alert(`You cannot add more than the available stock of ${kitToAdd.quantity}.`);
+      return;
     }
 
-    handleUpdateKitField(kitId, "imageUrl", data.imageUrl);
+    setCart((prevCart) => {
+      if (existingCartItem) {
+        return prevCart.map((item) =>
+          item.id === kitToAdd.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prevCart, { ...kitToAdd, quantity: 1 }];
+    });
+  };
 
-  } catch (error) {
-    console.error("Error fetching GDrive image:", error);
-    alert(`Error: ${error.message}`);
-  }
-};
+  const { totalItems, totalPrice } = useMemo(() => {
+    const items = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const price = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return { totalItems: items, totalPrice: price };
+  }, [cart]);
+
+  const handleCheckout = () => {
+    navigate("/checkout", { state: { cart, totalPrice, fromPaymentGate } });
+  };
+
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handleAdminToggle = () => {
+    setIsAdminOpen((s) => !s);
+    setIsAuthenticated(false);
+  };
 
   return (
     <div className="relative min-h-screen bg-gray-50 font-sans pb-28">
@@ -390,272 +647,15 @@ export default function MedicineDispensingWithAdmin() {
       )}
 
       {isAdminOpen && (
-        <div className="fixed inset-0 flex items-start justify-center pt-20 px-4" style={{zIndex: 9999}}>
-          <div className="absolute inset-0 bg-black/40" onClick={handleAdminToggle} style={{zIndex: 9998}}></div>
-          {/* Add max-h-[80vh] and overflow-y-auto for scroll */}
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto" style={{zIndex: 9999}}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Admin Panel</h2>
-              <button onClick={handleAdminToggle} className="text-gray-600">Close</button>
-            </div>
-            {!isAuthenticated ? (
-              <div>
-                {!showForgot ? (
-                  <form onSubmit={handleAdminLogin} className="space-y-4">
-                    <label className="block text-sm font-medium text-gray-700">Password</label>
-                    <input
-                      type="password"
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                      className="w-full rounded-md border px-3 py-2"
-                      placeholder="Enter admin password"
-                    />
-                    <div className="flex items-center justify-between gap-4">
-                      <PrimaryButton type="submit">Log in</PrimaryButton>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowForgot(true);
-                          setResetStage("request");
-                          setAdminEmail(localStorage.getItem("adminEmail_v1") || "");
-                        }}
-                        className="text-sm text-blue-600"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                        Login is now handled by the server. The default password is{" "}
-                      <span className="font-mono">admin123</span> and the default email is{" "}
-                      <span className="font-mono">ramanoswal13@gmail.com</span>
-                    </p>
-                  </form>
-                ) : (
-                  <div className="space-y-4">
-                    {resetStage === "request" ? (
-                      <form onSubmit={requestPasswordReset} className="space-y-4">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Registered Admin Email
-                        </label>
-                        <input
-                          value="ramanoswal13@gmail.com"
-                          readOnly
-                          className="w-full rounded-md border px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
-                        />
-                        <div className="flex items-center gap-4">
-                          <PrimaryButton type="submit">Send recovery email</PrimaryButton>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowForgot(false);
-                              setResetStage("request");
-                            }}
-                            className="text-sm text-gray-600"
-                          >
-                            Back to login
-                          </button>
-                        </div>
-                        {statusMessage && <p className="text-xs text-gray-600">{statusMessage}</p>}
-                      </form>
-                    ) : resetStage === "verify" ? (
-                      <form onSubmit={verifyAndResetPassword} className="space-y-4">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Recovery Code
-                        </label>
-                        <input
-                          value={verificationCodeInput}
-                          onChange={(e) => setVerificationCodeInput(e.target.value)}
-                          className="w-full rounded-md border px-3 py-2"
-                          placeholder="Enter the code you received via email"
-                        />
-                        <label className="block text-sm font-medium text-gray-700">
-                          New password
-                        </label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full rounded-md border px-3 py-2"
-                          placeholder="Set a new password"
-                        />
-                        <div className="flex items-center gap-4">
-                          <PrimaryButton type="submit">Reset password</PrimaryButton>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowForgot(false);
-                              setResetStage("request");
-                            }}
-                            className="text-sm text-gray-600"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                         {statusMessage && <p className="text-xs text-red-500">{statusMessage}</p>}
-                      </form>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            ) : (
-                <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold">Inventory</h3>
-                    <button
-                      onClick={handleAddNewKit}
-                      className="text-sm px-3 py-1 rounded-full border"
-                    >
-                      + New kit
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {/* --- Payment Mode Toggle --- */}
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-sm font-medium ${!isRunMode ? 'text-orange-500' : 'text-gray-500'}`}>Test Mode</span>
-                      <button
-                        onClick={handleModeToggle}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isRunMode ? 'bg-green-500' : 'bg-gray-300'}`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isRunMode ? 'translate-x-6' : 'translate-x-1'}`}
-                        />
-                      </button>
-                      <span className={`text-sm font-medium ${isRunMode ? 'text-green-500' : 'text-gray-500'}`}>Run Mode</span>
-                    </div>
-                    <PrimaryButton
-                      onClick={() => {
-                        setIsAuthenticated(false);
-                        alert("Logged out");
-                      }}
-                    >
-                      Log out
-                    </PrimaryButton>
-                  </div>
-                </div>
-                <div className="space-y-4 max-h-96 overflow-auto pr-2">
-                {activeKits.map((kit) => (
-                    <div
-                      key={kit.id}
-                      className="border rounded-xl p-3 flex gap-4 items-start"
-                    >
-                      <img
-                        src={kit.imageUrl}
-                        alt=""
-                        className="w-20 h-20 object-cover rounded-md"
-                      />
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center">
-                        <div className="md:col-span-1">
-                          <label className="text-xs text-gray-600">Name</label>
-                          <input
-                            value={kit.name}
-                            onChange={(e) =>
-                              handleUpdateKitField(kit.id, "name", e.target.value)
-                            }
-                            className="w-full rounded-md border px-2 py-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Description</label>
-                          <input
-                            value={kit.description}
-                            onChange={(e) =>
-                              handleUpdateKitField(kit.id, "description", e.target.value)
-                            }
-                            className="w-full rounded-md border px-2 py-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Price (₹)</label>
-                          <input
-                            type="number"
-                            value={kit.price}
-                            onChange={(e) =>
-                              handleUpdateKitField(kit.id, "price", Number(e.target.value))
-                            }
-                            className="w-full rounded-md border px-2 py-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Quantity</label>
-                          <input
-                            type="number"
-                            value={kit.quantity}
-                            onChange={(e) =>
-                              handleUpdateKitField(kit.id, "quantity", Number(e.target.value))
-                            }
-                            className="w-full rounded-md border px-2 py-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Expiry</label>
-                          <input
-                            type="date"
-                            value={kit.expiryDate}
-                            onChange={(e) =>
-                              handleUpdateKitField(kit.id, "expiryDate", e.target.value)
-                            }
-                            className="w-full rounded-md border px-2 py-1"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="text-xs text-gray-600">Image</label>
-
-                          {/* === FINAL UPDATED INPUT FOR GDRIVE === */}
-                          <input
-                            type="text"
-                            placeholder="Paste Google Drive Share Link"
-                            onBlur={(e) => handleGdriveUrl(kit.id, e.target.value)}
-                            className="w-full rounded-md border px-2 py-1 text-xs"
-                          />
-                          <span className="text-xs text-gray-500 text-center">or upload</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(kit.id, e.target.files[0])}
-                            className="text-xs"
-                          />
-                          <button
-                            onClick={() => handleDeleteKit(kit.id)}
-                            className="text-sm px-3 py-1 rounded-md border text-red-600 mt-2"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {expiredKits.length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-red-600">Expired Kits</h3>
-                    <div className="space-y-2 mt-2">
-                    {expiredKits.map(kit => (
-                      <div key={kit.id} className="border rounded-xl p-3 flex gap-4 items-center bg-red-50">
-                        <img src={kit.imageUrl} alt="" className="w-16 h-16 object-cover rounded-md opacity-50" />
-                        <div className="flex-1 text-sm">
-                          <p className="font-bold">{kit.name}</p>
-                          <p className="text-gray-600">Expired on: {kit.expiryDate}</p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteKit(kit.id)}
-                          className="text-sm px-3 py-1 rounded-md border text-red-600"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))}
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-3">
-                  Changes are saved locally and reflected in real-time on the main page.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        <KeyboardWrapper>
+          <AdminPanel
+            isAuthenticated={isAuthenticated}
+            setIsAuthenticated={setIsAuthenticated}
+            medicalKits={medicalKits}
+            setMedicalKits={setMedicalKits}
+            handleAdminToggle={handleAdminToggle}
+          />
+        </KeyboardWrapper>
       )}
     </div>
   );

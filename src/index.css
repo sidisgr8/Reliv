@@ -18,7 +18,7 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  z-index: 100;
+  z-index: 10000; /* Increased z-index to appear above the modal */
   background-color: #e5e7eb; /* A light gray background */
   padding: 5px;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
