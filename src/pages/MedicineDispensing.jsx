@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "../components/Logo";
 import TopEllipseBackground from "../components/TopEllipseBackground";
 import PrimaryButton from "../components/PrimaryButton";
+import { KeyboardWrapper } from "../components/KeyboardWrapper";
+import VirtualKeyboard from "../components/VirtualKeyboard";
 
 // --- Default Data (for fallback if MongoDB is empty) ---
 const defaultKits = [
@@ -157,6 +159,60 @@ export default function MedicineDispensingWithAdmin() {
   const [verificationCodeInput, setVerificationCodeInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isRunMode, setIsRunMode] = useState(() => localStorage.getItem("paymentMode") === "run");
+
+  const [keyboardState, setKeyboardState] = useState({
+    visible: false,
+    inputName: "",
+    inputs: {},
+  });
+
+  const handleInputFocus = (e) => {
+    setKeyboardState({
+      ...keyboardState,
+      visible: true,
+      inputName: e.target.name,
+    });
+  };
+
+  const handleKeyboardChange = (inputName, value) => {
+    setKeyboardState((prev) => ({
+      ...prev,
+      inputs: { ...prev.inputs, [inputName]: value },
+    }));
+
+    if (inputName === "passwordInput") {
+      setPasswordInput(value);
+    } else if (inputName === "newPassword") {
+      setNewPassword(value);
+    } else if (inputName === "verificationCodeInput") {
+      setVerificationCodeInput(value);
+    } else if (inputName.startsWith("kit-")) {
+        const [_, id, field] = inputName.split("-");
+        const newKits = medicalKits.map((k) => {
+            if (k.id === Number(id)) {
+                return { ...k, [field]: value };
+            }
+            return k;
+        });
+        setMedicalKits(newKits);
+    }
+  };
+
+  const handleUpdateKitField = async (id, field, value) => {
+      try {
+        const response = await fetch(`http://localhost:5000/api/kits/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [field]: value }),
+        });
+        if (!response.ok) throw new Error("Failed to update kit");
+        setMedicalKits((prev) => prev.map((k) => (k.id === id ? { ...k, [field]: value } : k)));
+      } catch (err) {
+        console.error("Error updating kit:", err);
+        alert(`Failed to update kit: ${err.message}`);
+      }
+    };
+
 
   // Fetch kits from MongoDB on mount
   useEffect(() => {
@@ -332,20 +388,6 @@ export default function MedicineDispensingWithAdmin() {
   };
 
   // --- Admin kit operations ---
-  const handleUpdateKitField = async (id, field, value) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/kits/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value }),
-      });
-      if (!response.ok) throw new Error("Failed to update kit");
-      setMedicalKits((prev) => prev.map((k) => (k.id === id ? { ...k, [field]: value } : k)));
-    } catch (err) {
-      console.error("Error updating kit:", err);
-      alert(`Failed to update kit: ${err.message}`);
-    }
-  };
 
   const handleDeleteKit = async (id) => {
     if (!window.confirm("Delete this kit? This is permanent.")) return;
@@ -571,7 +613,9 @@ export default function MedicineDispensingWithAdmin() {
                     <label className="block text-sm font-medium text-gray-700">Password</label>
                     <input
                       type="password"
+                      name="passwordInput"
                       value={passwordInput}
+                      onFocus={handleInputFocus}
                       onChange={(e) => setPasswordInput(e.target.value)}
                       className="w-full rounded-md border px-3 py-2"
                       placeholder="Enter admin password"
@@ -629,7 +673,9 @@ export default function MedicineDispensingWithAdmin() {
                           Recovery Code
                         </label>
                         <input
+                          name="verificationCodeInput"
                           value={verificationCodeInput}
+                          onFocus={handleInputFocus}
                           onChange={(e) => setVerificationCodeInput(e.target.value)}
                           className="w-full rounded-md border px-3 py-2"
                           placeholder="Enter the code you received via email"
@@ -639,7 +685,9 @@ export default function MedicineDispensingWithAdmin() {
                         </label>
                         <input
                           type="password"
+                          name="newPassword"
                           value={newPassword}
+                          onFocus={handleInputFocus}
                           onChange={(e) => setNewPassword(e.target.value)}
                           className="w-full rounded-md border px-3 py-2"
                           placeholder="Set a new password"
@@ -726,7 +774,9 @@ export default function MedicineDispensingWithAdmin() {
                         <div className="md:col-span-1">
                           <label className="text-xs text-gray-600">Name</label>
                           <input
+                            name={`kit-${kit.id}-name`}
                             value={kit.name}
+                            onFocus={handleInputFocus}
                             onChange={(e) =>
                               handleUpdateKitField(kit.id, "name", e.target.value)
                             }
@@ -736,7 +786,9 @@ export default function MedicineDispensingWithAdmin() {
                         <div>
                           <label className="text-xs text-gray-600">Description</label>
                           <input
+                            name={`kit-${kit.id}-description`}
                             value={kit.description}
+                            onFocus={handleInputFocus}
                             onChange={(e) =>
                               handleUpdateKitField(kit.id, "description", e.target.value)
                             }
@@ -747,7 +799,9 @@ export default function MedicineDispensingWithAdmin() {
                           <label className="text-xs text-gray-600">Price (₹)</label>
                           <input
                             type="number"
+                            name={`kit-${kit.id}-price`}
                             value={kit.price}
+                            onFocus={handleInputFocus}
                             onChange={(e) =>
                               handleUpdateKitField(kit.id, "price", Number(e.target.value))
                             }
@@ -758,7 +812,9 @@ export default function MedicineDispensingWithAdmin() {
                           <label className="text-xs text-gray-600">Quantity</label>
                           <input
                             type="number"
+                            name={`kit-${kit.id}-quantity`}
                             value={kit.quantity}
+                            onFocus={handleInputFocus}
                             onChange={(e) =>
                               handleUpdateKitField(kit.id, "quantity", Number(e.target.value))
                             }
@@ -769,7 +825,9 @@ export default function MedicineDispensingWithAdmin() {
                           <label className="text-xs text-gray-600">Expiry</label>
                           <input
                             type="date"
+                            name={`kit-${kit.id}-expiryDate`}
                             value={kit.expiryDate}
+                            onFocus={handleInputFocus}
                             onChange={(e) =>
                               handleUpdateKitField(kit.id, "expiryDate", e.target.value)
                             }
@@ -814,7 +872,9 @@ export default function MedicineDispensingWithAdmin() {
                             <div className="md:col-span-1">
                               <label className="text-xs text-gray-600">Name</label>
                               <input
+                                name={`kit-${kit.id}-name`}
                                 value={kit.name}
+                                onFocus={handleInputFocus}
                                 onChange={(e) =>
                                   handleUpdateKitField(kit.id, "name", e.target.value)
                                 }
@@ -824,7 +884,9 @@ export default function MedicineDispensingWithAdmin() {
                             <div>
                               <label className="text-xs text-gray-600">Description</label>
                               <input
+                                name={`kit-${kit.id}-description`}
                                 value={kit.description}
+                                onFocus={handleInputFocus}
                                 onChange={(e) =>
                                   handleUpdateKitField(kit.id, "description", e.target.value)
                                 }
@@ -835,7 +897,9 @@ export default function MedicineDispensingWithAdmin() {
                               <label className="text-xs text-gray-600">Price (₹)</label>
                               <input
                                 type="number"
+                                name={`kit-${kit.id}-price`}
                                 value={kit.price}
+                                onFocus={handleInputFocus}
                                 onChange={(e) =>
                                   handleUpdateKitField(kit.id, "price", Number(e.target.value))
                                 }
@@ -846,7 +910,9 @@ export default function MedicineDispensingWithAdmin() {
                               <label className="text-xs text-gray-600">Quantity</label>
                               <input
                                 type="number"
+                                name={`kit-${kit.id}-quantity`}
                                 value={kit.quantity}
+                                onFocus={handleInputFocus}
                                 onChange={(e) =>
                                   handleUpdateKitField(kit.id, "quantity", Number(e.target.value))
                                 }
@@ -857,7 +923,9 @@ export default function MedicineDispensingWithAdmin() {
                               <label className="text-xs text-gray-600">Expiry</label>
                               <input
                                 type="date"
+                                name={`kit-${kit.id}-expiryDate`}
                                 value={kit.expiryDate}
+                                onFocus={handleInputFocus}
                                 onChange={(e) =>
                                   handleUpdateKitField(kit.id, "expiryDate", e.target.value)
                                 }
@@ -892,6 +960,14 @@ export default function MedicineDispensingWithAdmin() {
               </div>
             )}
           </div>
+          {keyboardState.visible && (
+            <VirtualKeyboard
+              inputName={keyboardState.inputName}
+              inputs={keyboardState.inputs}
+              onChange={handleKeyboardChange}
+              onClose={() => setKeyboardState({ ...keyboardState, visible: false })}
+            />
+          )}
         </div>
       )}
     </div>

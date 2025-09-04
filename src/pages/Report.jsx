@@ -17,6 +17,7 @@ import {
   ArcElement,
 } from "chart.js";
 import * as bodyComposition from "../utils/bodyComposition";
+import VirtualKeyboard from "../components/VirtualKeyboard";
 
 ChartJS.register(
   CategoryScale,
@@ -287,6 +288,23 @@ export default function Report() {
   const referenceRef = useRef();
   const stockUpdated = useRef(false);
   const [history, setHistory] = useState([]);
+  const [showDoctorEmailInput, setShowDoctorEmailInput] = useState(false);
+  const [doctorEmail, setDoctorEmail] = useState("");
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardInputName, setKeyboardInputName] = useState("");
+
+  const allInputs = { doctorEmail };
+
+  const handleInputFocus = (e) => {
+    setIsKeyboardVisible(true);
+    setKeyboardInputName(e.target.name);
+  };
+
+  const handleKeyboardChange = (name, value) => {
+    if (name === "doctorEmail") {
+      setDoctorEmail(value);
+    }
+  };
 
   const bodyCompositionData = useMemo(() => {
     if (!vitals.weight || !patient.age || !patient.gender || !vitals.height) {
@@ -499,16 +517,20 @@ export default function Report() {
     return canvas.toDataURL("image/png");
   };
 
-  const handleSendFullEmail = async () => {
+  const handleSendFullEmail = async (targetEmail) => {
+    if (!targetEmail) {
+      alert("Please provide an email address.");
+      return;
+    }
     setSending(true);
     const imgData = await captureReport();
 
     try {
-      const res = await fetch("http://localhost:5000/send-report", {
+      const res = await fetch("http://localhost:5000/api/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: patient.email,
+          to: targetEmail,
           name: patient.name,
           healthData: data,
           reportImage: imgData,
@@ -517,7 +539,13 @@ export default function Report() {
       });
       const result = await res.json();
       if (result.ok) {
-        setShowCleansing(true);
+        if (targetEmail === patient.email) {
+            setShowCleansing(true);
+        } else {
+            alert(`Report successfully sent to ${targetEmail}`);
+            setShowDoctorEmailInput(false);
+            setDoctorEmail("");
+        }
       } else {
         alert("Could not send email. Please try again.");
       }
@@ -578,7 +606,7 @@ export default function Report() {
   }, [isSpeaking]);
 
   return (
-    <div className="bg-gray-50 min-h-screen py-12 px-4">
+    <div className={`bg-gray-50 min-h-screen py-12 px-4 transition-all duration-300 ${isKeyboardVisible ? 'pb-80' : 'pb-12'}`}>
       <div className="max-w-3xl mx-auto">
         <div
           ref={pdfRef}
@@ -674,9 +702,7 @@ export default function Report() {
             </section>
 
             {bodyCompositionData && (
-              <section className="mt各个
-
-              mt-8">
+              <section className="mt-8">
                 <h3 className="text-xl font-semibold text-gray-800 border-b-2 border-orange-200 pb-2 mb-4">
                   Body Composition
                 </h3>
@@ -1154,11 +1180,17 @@ export default function Report() {
             {isSpeaking ? "Stop Reading" : "Read Report Aloud"}
           </button>
           <button
-            onClick={handleSendFullEmail}
+            onClick={() => handleSendFullEmail(patient.email)}
             disabled={sending || !patient.email}
             className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sending ? "Sending..." : "Email Full Report"}
+            {sending ? "Sending..." : "Email My Report"}
+          </button>
+          <button
+            onClick={() => setShowDoctorEmailInput(!showDoctorEmailInput)}
+            className="bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105"
+          >
+            Send to Doctor
           </button>
           <button
             onClick={() => navigate("/")}
@@ -1167,14 +1199,44 @@ export default function Report() {
             Home
           </button>
         </div>
+        {showDoctorEmailInput && (
+          <div className="mt-4 flex justify-center items-center gap-2">
+            <input
+              type="email"
+              name="doctorEmail"
+              value={doctorEmail}
+              onChange={e => setDoctorEmail(e.target.value)}
+              onFocus={handleInputFocus}
+              placeholder="Doctor's Email"
+              className="border rounded-lg px-3 py-2 w-64"
+            />
+            <button
+              onClick={() => handleSendFullEmail(doctorEmail)}
+              disabled={sending || !doctorEmail}
+              className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 disabled:opacity-50"
+            >
+              Send
+            </button>
+          </div>
+        )}
       </div>
 
       {showCleansing && (
         <UVCleansingAnimation onComplete={() => navigate("/")} />
       )}
+
+      {isKeyboardVisible && (
+        <VirtualKeyboard
+          inputName={keyboardInputName}
+          inputs={allInputs}
+          onChange={handleKeyboardChange}
+          onClose={() => setIsKeyboardVisible(false)}
+        />
+      )}
     </div>
   );
 }
+
 
 // --- Reusable VitalCard Component ---
 const VitalCard = ({ label, value, status, note, className = "" }) => {
