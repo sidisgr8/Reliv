@@ -10,6 +10,8 @@ import { MongoClient, ObjectId } from "mongodb";
 import Razorpay from "razorpay";
 import QRCode from "qrcode";
 import fetch from 'node-fetch';
+import { SerialPort } from "serialport";
+import { ReadlineParser } from "@serialport/parser-readline";
 
 dotenv.config();
 
@@ -17,6 +19,34 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// --- SerialPort for ESP32 ---
+const esp32Port = new SerialPort({ path: "COM4", baudRate: 115200 }, (err) => {
+    if (err) {
+        console.error("Failed to open serial port on COM4:", err.message);
+    } else {
+        console.log("Serial port to ESP32 opened on COM4");
+    }
+});
+const parser = esp32Port.pipe(new ReadlineParser({ delimiter: "\n" }));
+
+parser.on("data", (data) => {
+    console.log("Received from ESP32:", data);
+});
+
+function sendServoCommand(cart) {
+    if (!cart || cart.length === 0) return;
+    const command = cart.map((item) => `${item.id}:${item.quantity}`).join(",");
+    console.log("Sending servo rotation command to ESP32:", command);
+    esp32Port.write(command + "\n", (err) => {
+        if (err) {
+            console.error("Error on writing to ESP32:", err.message);
+        } else {
+            console.log("Command sent to ESP32 successfully");
+        }
+    });
+}
+
 
 // --- Razorpay Instance ---
 const razorpay = new Razorpay({
@@ -739,6 +769,8 @@ app.post("/api/send-receipt", async (req, res) => {
     // Fetch eco stats
 const ecoStatsResponse = await fetch(`${req.protocol}://${req.get('host')}/api/eco-stats`);
     const ecoStats = await ecoStatsResponse.json();
+    
+    sendServoCommand(cart);
 
     const pdfBuffer = await generateReceiptPdf(
       { patient, cart, totalPrice, needsReport },

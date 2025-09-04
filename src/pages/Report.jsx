@@ -18,6 +18,7 @@ import {
   ArcElement,
 } from "chart.js";
 import * as bodyComposition from "../utils/bodyComposition";
+import { KeyboardWrapper } from "../components/KeyboardWrapper";
 
 ChartJS.register(
   CategoryScale,
@@ -241,7 +242,7 @@ const BodyCompositionChart = ({ compositionData }) => {
 
 // --- Main Report Component ---
 
-export default function Report() {
+function Report({ inputs, onInputChange }) {
   const { data } = useHealth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -257,7 +258,6 @@ export default function Report() {
   const [reportId, setReportId] = useState(null);
   const [doctorEmail, setDoctorEmail] = useState("");
   const [sendingTo, setSendingTo] = useState(null); // null, 'patient', or 'doctor'
-
 
   const bodyCompositionData = useMemo(() => {
     if (!vitals.weight || !patient.age || !patient.gender || !vitals.height) {
@@ -276,7 +276,7 @@ export default function Report() {
       age,
       impedance
     );
-     const fat_mass = bodyComposition.calc_fat_mass(weight, fat_percent);
+    const fat_mass = bodyComposition.calc_fat_mass(weight, fat_percent);
     const muscle_percent = bodyComposition.calc_muscle_percent(
       weight,
       height,
@@ -284,7 +284,10 @@ export default function Report() {
       age,
       impedance
     );
-    const muscle_mass = bodyComposition.calc_muscle_mass(weight, muscle_percent);
+    const muscle_mass = bodyComposition.calc_muscle_mass(
+      weight,
+      muscle_percent
+    );
     const water_percent = bodyComposition.calc_water_percent(
       weight,
       height,
@@ -301,8 +304,8 @@ export default function Report() {
     );
     const bone_percent = bodyComposition.calc_bone_percent(weight, bone_mass);
     const standard_weight = bodyComposition.calc_standard_weight(height);
-    const subcutaneous_fat_percent = bodyComposition.calc_subcutaneous_fat_percent(fat_percent);
-
+    const subcutaneous_fat_percent =
+      bodyComposition.calc_subcutaneous_fat_percent(fat_percent);
 
     return {
       bmi: bodyComposition.calc_bmi(weight, height),
@@ -315,7 +318,10 @@ export default function Report() {
       bone_mass,
       bone_percent,
       protein_percent: bodyComposition.calc_protein_percent(muscle_percent),
-      protein_mass: bodyComposition.calc_protein_mass(weight, bodyComposition.calc_protein_percent(muscle_percent)),
+      protein_mass: bodyComposition.calc_protein_mass(
+        weight,
+        bodyComposition.calc_protein_percent(muscle_percent)
+      ),
       visceral_fat_level: bodyComposition.calc_visceral_fat_level(
         weight,
         height,
@@ -329,20 +335,45 @@ export default function Report() {
         age,
         sex
       ),
-      skeletal_muscle_percent: bodyComposition.calc_skeletal_muscle_percent(muscle_percent),
+      skeletal_muscle_percent:
+        bodyComposition.calc_skeletal_muscle_percent(muscle_percent),
       subcutaneous_fat_percent,
-      subcutaneous_fat_mass: bodyComposition.calc_subcutaneous_fat_mass(weight, subcutaneous_fat_percent),
+      subcutaneous_fat_mass: bodyComposition.calc_subcutaneous_fat_mass(
+        weight,
+        subcutaneous_fat_percent
+      ),
       fat_free_weight: bodyComposition.calc_fat_free_weight(weight, fat_mass),
-      body_surface_area: bodyComposition.calc_body_surface_area(height, weight),
+      body_surface_area: bodyComposition.calc_body_surface_area(
+        height,
+        weight
+      ),
       ideal_body_weight: bodyComposition.calc_ideal_body_weight(height, sex),
       standard_weight,
-      weight_control: bodyComposition.calc_weight_control(standard_weight, weight),
+      weight_control: bodyComposition.calc_weight_control(
+        standard_weight,
+        weight
+      ),
       fat_control: bodyComposition.calc_fat_control(weight, fat_percent, sex),
-      muscle_control: bodyComposition.calc_muscle_control(weight, muscle_percent),
-      body_score: bodyComposition.calc_body_score(weight, height, sex, age, impedance),
+      muscle_control: bodyComposition.calc_muscle_control(
+        weight,
+        muscle_percent
+      ),
+      body_score: bodyComposition.calc_body_score(
+        weight,
+        height,
+        sex,
+        age,
+        impedance
+      ),
       ffmi: bodyComposition.calc_ffmi(weight, height, fat_mass),
     };
   }, [vitals, patient]);
+
+  useEffect(() => {
+    if (inputs && inputs.doctorEmail) {
+      setDoctorEmail(inputs.doctorEmail);
+    }
+  }, [inputs]);
 
   useEffect(() => {
     const fetchHistoryAndGenerateQR = async () => {
@@ -356,17 +387,14 @@ export default function Report() {
           setHistory(historyData);
 
           // Save current report and get ID
-          const reportRes = await fetch(
-            "/api/save-report",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                healthData: data,
-                bodyCompositionData: bodyCompositionData,
-              }),
-            }
-          );
+          const reportRes = await fetch("/api/save-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              healthData: data,
+              bodyCompositionData: bodyCompositionData,
+            }),
+          });
           const reportData = await reportRes.json();
           if (reportData.ok) {
             setReportId(reportData.reportId);
@@ -470,42 +498,53 @@ export default function Report() {
     if (!imgData) return;
 
     const pdf = new jsPDF({
-      orientation: 'p',
-      unit: 'mm',
-      format: 'a4'
+      orientation: "p",
+      unit: "mm",
+      format: "a4",
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     const img = new Image();
     img.src = imgData;
-    await new Promise(resolve => { img.onload = resolve });
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
 
     const canvasWidth = img.width;
     const canvasHeight = img.height;
-    
-    const totalPages = Math.ceil(canvasHeight / (canvasWidth * pdfHeight / pdfWidth));
-    
+
+    const totalPages = Math.ceil(
+      canvasHeight / ((canvasWidth * pdfHeight) / pdfWidth)
+    );
+
     for (let i = 0; i < totalPages; i++) {
       if (i > 0) {
         pdf.addPage();
       }
-      const y = - (i * pdfHeight);
-      pdf.addImage(imgData, "PNG", 0, y, pdfWidth, canvasHeight * pdfWidth / pdfWidth);
+      const y = -(i * pdfHeight);
+      pdf.addImage(
+        imgData,
+        "PNG",
+        0,
+        y,
+        pdfWidth,
+        (canvasHeight * pdfWidth) / pdfWidth
+      );
     }
-    
+
     pdf.save(`Reliv-Health-Report-${patient.name || "user"}.pdf`);
   };
 
   const handleSendEmail = async () => {
-    setSendingTo('patient');
+    setSendingTo("patient");
     const imgData = await generatePdfAsImage();
     if (!imgData) {
-        setSendingTo(null);
-        return;
-    };
+      setSendingTo(null);
+      return;
+    }
 
     try {
       const res = await fetch("/api/send-report", {
@@ -534,39 +573,40 @@ export default function Report() {
 
   const handleSendToDoctor = async () => {
     if (!doctorEmail || !/^\S+@\S+\.\S+$/.test(doctorEmail)) {
-        alert("Please enter a valid email address for the doctor.");
-        return;
+      alert("Please enter a valid email address for the doctor.");
+      return;
     }
-    setSendingTo('doctor');
+    setSendingTo("doctor");
     const imgData = await generatePdfAsImage();
     if (!imgData) {
-        setSendingTo(null);
-        return;
-    };
+      setSendingTo(null);
+      return;
+    }
 
     try {
-        const res = await fetch("/api/send-report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                to: doctorEmail,
-                name: patient.name,
-                healthData: data,
-                reportImage: imgData,
-            }),
-        });
-        const result = await res.json();
-        if (result.ok) {
-            alert(`Report sent successfully to ${doctorEmail}`);
-            setDoctorEmail(''); // Clear input on success
-        } else {
-            alert("Could not send email to the doctor. Please try again.");
-        }
+      const res = await fetch("/api/send-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: doctorEmail,
+          name: patient.name,
+          healthData: data,
+          reportImage: imgData,
+        }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        alert(`Report sent successfully to ${doctorEmail}`);
+        setDoctorEmail(""); // Clear input on success
+        if (onInputChange) onInputChange("doctorEmail", "");
+      } else {
+        alert("Could not send email to the doctor. Please try again.");
+      }
     } catch (error) {
-        console.error("Failed to send email to doctor:", error);
-        alert("An error occurred. Please check the server logs.");
+      console.error("Failed to send email to doctor:", error);
+      alert("An error occurred. Please check the server logs.");
     } finally {
-        setSendingTo(null);
+      setSendingTo(null);
     }
   };
 
@@ -620,7 +660,7 @@ export default function Report() {
   }, [isSpeaking]);
 
   return (
-    <div className="bg-gray-50 min-h-screen py-12 px-4">
+    <div className="bg-gray-50 min-h-screen py-12 px-4 pb-80">
       <div className="max-w-3xl mx-auto">
         <div
           ref={pdfRef}
@@ -735,19 +775,25 @@ export default function Report() {
                     value={`${bodyCompositionData.fat_percent.toFixed(1)}%`}
                     note={`${bodyCompositionData.fat_mass.toFixed(1)} kg`}
                   />
-                   <VitalCard
+                  <VitalCard
                     label="Subcutaneous Fat"
-                    value={`${bodyCompositionData.subcutaneous_fat_percent.toFixed(1)}%`}
-                    note={`${bodyCompositionData.subcutaneous_fat_mass.toFixed(1)} kg`}
+                    value={`${bodyCompositionData.subcutaneous_fat_percent.toFixed(
+                      1
+                    )}%`}
+                    note={`${bodyCompositionData.subcutaneous_fat_mass.toFixed(
+                      1
+                    )} kg`}
                   />
                   <VitalCard
                     label="Muscle"
                     value={`${bodyCompositionData.muscle_percent.toFixed(1)}%`}
                     note={`${bodyCompositionData.muscle_mass.toFixed(1)} kg`}
                   />
-                   <VitalCard
+                  <VitalCard
                     label="Skeletal Muscle"
-                    value={`${bodyCompositionData.skeletal_muscle_percent.toFixed(1)}%`}
+                    value={`${bodyCompositionData.skeletal_muscle_percent.toFixed(
+                      1
+                    )}%`}
                   />
                   <VitalCard
                     label="Water"
@@ -757,7 +803,7 @@ export default function Report() {
                   <VitalCard
                     label="Bone Mass"
                     value={`${bodyCompositionData.bone_mass.toFixed(1)} kg`}
-                     note={`${bodyCompositionData.bone_percent.toFixed(1)} %`}
+                    note={`${bodyCompositionData.bone_percent.toFixed(1)} %`}
                   />
                   <VitalCard
                     label="Protein"
@@ -781,33 +827,45 @@ export default function Report() {
                     value={bodyCompositionData.metabolic_age}
                     status="Years"
                   />
-                   <VitalCard
+                  <VitalCard
                     label="Fat-Free Body Weight"
-                    value={`${bodyCompositionData.fat_free_weight.toFixed(2)} kg`}
+                    value={`${bodyCompositionData.fat_free_weight.toFixed(
+                      2
+                    )} kg`}
                   />
-                   <VitalCard
+                  <VitalCard
                     label="Body Surface Area"
-                    value={`${bodyCompositionData.body_surface_area.toFixed(2)} m²`}
+                    value={`${bodyCompositionData.body_surface_area.toFixed(
+                      2
+                    )} m²`}
                   />
                   <VitalCard
                     label="Ideal Body Weight"
-                    value={`${bodyCompositionData.ideal_body_weight.toFixed(2)} kg`}
+                    value={`${bodyCompositionData.ideal_body_weight.toFixed(
+                      2
+                    )} kg`}
                   />
-                   <VitalCard
+                  <VitalCard
                     label="Standard Weight"
-                    value={`${bodyCompositionData.standard_weight.toFixed(2)} kg`}
+                    value={`${bodyCompositionData.standard_weight.toFixed(
+                      2
+                    )} kg`}
                   />
                   <VitalCard
                     label="Weight Control"
-                    value={`${bodyCompositionData.weight_control.toFixed(2)} kg`}
+                    value={`${bodyCompositionData.weight_control.toFixed(
+                      2
+                    )} kg`}
                   />
                   <VitalCard
                     label="Fat Control"
                     value={`${bodyCompositionData.fat_control.toFixed(2)} kg`}
                   />
-                   <VitalCard
+                  <VitalCard
                     label="Muscle Control"
-                    value={`${bodyCompositionData.muscle_control.toFixed(2)} kg`}
+                    value={`${bodyCompositionData.muscle_control.toFixed(
+                      2
+                    )} kg`}
                   />
                   <VitalCard
                     label="Body Score"
@@ -878,7 +936,7 @@ export default function Report() {
             disabled={sendingTo !== null || !patient.email}
             className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sendingTo === 'patient' ? "Sending..." : "Email My Report"}
+            {sendingTo === "patient" ? "Sending..." : "Email My Report"}
           </button>
           <button
             onClick={handleDownloadPdf}
@@ -893,30 +951,33 @@ export default function Report() {
             Home
           </button>
         </div>
-        
-        <div className="mt-8 border-t pt-6 max-w-md mx-auto">
-            <h4 className="text-lg font-semibold text-center text-gray-700 mb-4">
-                Share Report with a Doctor
-            </h4>
-            <div className="flex flex-col items-center gap-3">
-                <input
-                    type="email"
-                    value={doctorEmail}
-                    onChange={(e) => setDoctorEmail(e.target.value)}
-                    placeholder="Enter doctor's email address"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    aria-label="Doctor's email"
-                />
-                <button
-                    onClick={handleSendToDoctor}
-                    disabled={sendingTo !== null || !doctorEmail}
-                    className="w-full bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {sendingTo === 'doctor' ? 'Sending...' : 'Send PDF to Doctor'}
-                </button>
-            </div>
-        </div>
 
+        <div className="mt-8 border-t pt-6 max-w-md mx-auto">
+          <h4 className="text-lg font-semibold text-center text-gray-700 mb-4">
+            Share Report with a Doctor
+          </h4>
+          <div className="flex flex-col items-center gap-3">
+            <input
+              type="email"
+              name="doctorEmail"
+              value={doctorEmail}
+              onChange={(e) => {
+                setDoctorEmail(e.target.value);
+                if (onInputChange) onInputChange("doctorEmail", e.target.value);
+              }}
+              placeholder="Enter doctor's email address"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              aria-label="Doctor's email"
+            />
+            <button
+              onClick={handleSendToDoctor}
+              disabled={sendingTo !== null || !doctorEmail}
+              className="w-full bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sendingTo === "doctor" ? "Sending..." : "Send PDF to Doctor"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Conditionally render the animation overlay */}
@@ -924,6 +985,14 @@ export default function Report() {
         <UVCleansingAnimation onComplete={() => navigate("/")} />
       )}
     </div>
+  );
+}
+
+export default function ReportWrapper() {
+  return (
+    <KeyboardWrapper>
+      <Report />
+    </KeyboardWrapper>
   );
 }
 
@@ -966,9 +1035,11 @@ const VitalCard = ({ label, value, status, note, className = "" }) => {
           </span>
         </div>
       )}
-      {note && <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
-        {note}
-      </p>}
+      {note && (
+        <p className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-100">
+          {note}
+        </p>
+      )}
     </div>
   );
 };
