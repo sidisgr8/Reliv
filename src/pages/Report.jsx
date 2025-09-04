@@ -255,6 +255,9 @@ export default function Report() {
   const [history, setHistory] = useState([]);
   const [qrCode, setQrCode] = useState("");
   const [reportId, setReportId] = useState(null);
+  const [doctorEmail, setDoctorEmail] = useState("");
+  const [sendingTo, setSendingTo] = useState(null); // null, 'patient', or 'doctor'
+
 
   const bodyCompositionData = useMemo(() => {
     if (!vitals.weight || !patient.age || !patient.gender || !vitals.height) {
@@ -372,7 +375,7 @@ export default function Report() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                url: `http://localhost:5000/api/report/${reportData.reportId}/download`,
+                url: `${window.location.origin}/api/report/${reportData.reportId}/download`,
               }),
             });
             const qrData = await qrRes.json();
@@ -444,9 +447,9 @@ export default function Report() {
     [vitals]
   );
 
-const generatePdf = async () => {
+  const generatePdfAsImage = async () => {
     const content = pdfRef.current;
-    if (!content) return;
+    if (!content) return null;
 
     content.classList.add("pdf-render");
 
@@ -459,8 +462,13 @@ const generatePdf = async () => {
     });
 
     content.classList.remove("pdf-render");
+    return canvas.toDataURL("image/png");
+  };
 
-    const imgData = canvas.toDataURL("image/png");
+  const handleDownloadPdf = async () => {
+    const imgData = await generatePdfAsImage();
+    if (!imgData) return;
+
     const pdf = new jsPDF({
       orientation: 'p',
       unit: 'mm',
@@ -469,8 +477,14 @@ const generatePdf = async () => {
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.src = imgData;
+    await new Promise(resolve => { img.onload = resolve });
+
+    const canvasWidth = img.width;
+    const canvasHeight = img.height;
     
     const totalPages = Math.ceil(canvasHeight / (canvasWidth * pdfHeight / pdfWidth));
     
@@ -479,29 +493,19 @@ const generatePdf = async () => {
         pdf.addPage();
       }
       const y = - (i * pdfHeight);
-      pdf.addImage(imgData, "PNG", 0, y, pdfWidth, canvasHeight * pdfWidth / canvasWidth);
+      pdf.addImage(imgData, "PNG", 0, y, pdfWidth, canvasHeight * pdfWidth / pdfWidth);
     }
-
-    return pdf;
-};
-  const handleDownloadPdf = async () => {
-    const pdf = await generatePdf();
+    
     pdf.save(`Reliv-Health-Report-${patient.name || "user"}.pdf`);
   };
 
   const handleSendEmail = async () => {
-    setSending(true);
-    const content = pdfRef.current;
-    content.classList.add("pdf-render");
-    const canvas = await html2canvas(content, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      windowWidth: content.scrollWidth,
-      windowHeight: content.scrollHeight,
-    });
-    content.classList.remove("pdf-render");
-    const imgData = canvas.toDataURL("image/png");
+    setSendingTo('patient');
+    const imgData = await generatePdfAsImage();
+    if (!imgData) {
+        setSendingTo(null);
+        return;
+    };
 
     try {
       const res = await fetch("/api/send-report", {
@@ -524,7 +528,45 @@ const generatePdf = async () => {
       console.error("Failed to send email:", error);
       alert("An error occurred. Please check the server logs.");
     } finally {
-      setSending(false);
+      setSendingTo(null);
+    }
+  };
+
+  const handleSendToDoctor = async () => {
+    if (!doctorEmail || !/^\S+@\S+\.\S+$/.test(doctorEmail)) {
+        alert("Please enter a valid email address for the doctor.");
+        return;
+    }
+    setSendingTo('doctor');
+    const imgData = await generatePdfAsImage();
+    if (!imgData) {
+        setSendingTo(null);
+        return;
+    };
+
+    try {
+        const res = await fetch("/api/send-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                to: doctorEmail,
+                name: patient.name,
+                healthData: data,
+                reportImage: imgData,
+            }),
+        });
+        const result = await res.json();
+        if (result.ok) {
+            alert(`Report sent successfully to ${doctorEmail}`);
+            setDoctorEmail(''); // Clear input on success
+        } else {
+            alert("Could not send email to the doctor. Please try again.");
+        }
+    } catch (error) {
+        console.error("Failed to send email to doctor:", error);
+        alert("An error occurred. Please check the server logs.");
+    } finally {
+        setSendingTo(null);
     }
   };
 
@@ -833,10 +875,10 @@ const generatePdf = async () => {
           </button>
           <button
             onClick={handleSendEmail}
-            disabled={sending || !patient.email}
+            disabled={sendingTo !== null || !patient.email}
             className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {sending ? "Sending..." : "Email Report"}
+            {sendingTo === 'patient' ? "Sending..." : "Email My Report"}
           </button>
           <button
             onClick={handleDownloadPdf}
@@ -851,6 +893,30 @@ const generatePdf = async () => {
             Home
           </button>
         </div>
+        
+        <div className="mt-8 border-t pt-6 max-w-md mx-auto">
+            <h4 className="text-lg font-semibold text-center text-gray-700 mb-4">
+                Share Report with a Doctor
+            </h4>
+            <div className="flex flex-col items-center gap-3">
+                <input
+                    type="email"
+                    value={doctorEmail}
+                    onChange={(e) => setDoctorEmail(e.target.value)}
+                    placeholder="Enter doctor's email address"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    aria-label="Doctor's email"
+                />
+                <button
+                    onClick={handleSendToDoctor}
+                    disabled={sendingTo !== null || !doctorEmail}
+                    className="w-full bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {sendingTo === 'doctor' ? 'Sending...' : 'Send PDF to Doctor'}
+                </button>
+            </div>
+        </div>
+
       </div>
 
       {/* Conditionally render the animation overlay */}

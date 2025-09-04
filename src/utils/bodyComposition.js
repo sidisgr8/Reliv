@@ -106,10 +106,32 @@ export function calc_bmr(weight, height, sex, age) {
 }
 
 export function calc_metabolic_age(bmr, age, sex) {
-    const ref_bmr = sex === 1 ? 1500 : 1200;
-    const metabolic_age = age + (bmr - ref_bmr) / 38 - 3;
-    return Math.max(16, Math.min(Math.round(metabolic_age), 100));
+  // Reference BMR data based on age and sex (approximated from various health sources)
+  const refBMR = {
+    male: { 20: 1700, 30: 1650, 40: 1600, 50: 1550, 60: 1500, 70: 1450 },
+    female: { 20: 1350, 30: 1300, 40: 1250, 50: 1200, 60: 1150, 70: 1100 }
+  };
+
+  const gender = sex === 1 ? 'male' : 'female';
+  const ageBrackets = Object.keys(refBMR[gender]).map(Number);
+
+  // Find the closest age bracket
+  const closestAge = ageBrackets.reduce((prev, curr) => 
+    (Math.abs(curr - age) < Math.abs(prev - age) ? curr : prev)
+  );
+
+  const averageBMRForAge = refBMR[gender][closestAge];
+  const bmrDifference = bmr - averageBMRForAge;
+
+  // Roughly, a 25-30 BMR point difference can correspond to a year of metabolic age.
+  // We'll use an approximate factor. A higher BMR than average means a younger metabolic age.
+  const ageDifference = bmrDifference / 27.5;
+
+  const metabolicAge = age - ageDifference;
+  
+  return Math.max(18, Math.min(Math.round(metabolicAge), 80)); // Keep it within a reasonable range
 }
+
 
 // New functions translated from main_code.py
 export function calc_subcutaneous_fat_percent(fat_percent) {
