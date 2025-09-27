@@ -2,14 +2,13 @@ import React, { useState, useEffect } from "react";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
-import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
+import Oximeter from "../assets/Oximeter.mp4";
 import BodyTemperature from "./BodyTemperature";
 import { useHealth } from "../context/HealthContext";
 
-
 /**
- * Splash screen before Oxygen & Pulse page
- * - stays for 2s and then navigates to the inputs page
+ * Splash screen before Oxygen page
+ * - stays for 2s and then navigates to the oxygen input page
  */
 const Splash = ({ onComplete }) => {
   useEffect(() => {
@@ -38,7 +37,7 @@ const Splash = ({ onComplete }) => {
         <div className="max-w-xs text-center">
           <h2 className="text-[18px] font-normal leading-snug text-gray-800 mb-4">
             Now we’ll be checking your{" "}
-            <span className="font-bold">Oxygen & Pulse</span>
+            <span className="font-bold">Oxygen</span>
           </h2>
 
           <h3 className="text-[28px] font-extrabold text-gray-900 mb-6">
@@ -59,20 +58,42 @@ const Splash = ({ onComplete }) => {
 };
 
 /**
- * Main Oxygen & Pulse page
+ * Oxygen measurement page with backend fetch and no pulse input
  */
 const OxygenPulsePage = ({ onProceed }) => {
-  const [oxygen, setOxygen] = useState("");
-  const [pulse, setPulse] = useState("");
+  const [oxygen, setOxygen] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { data, update } = useHealth();
 
-   const { data, update } = useHealth();
+  const triggerOxygen = async () => {
+    setLoading(true);
+    setError("");
+    setOxygen(null);
+    try {
+      const resp = await fetch("http://localhost:5001/trigger_oxygen", {
+        method: "POST",
+      });
+      const result = await resp.json();
+      if (result.status === "success" && result.value !== null) {
+        setOxygen(result.value);
+      } else {
+        setError(result.message || "Error receiving oxygen data.");
+      }
+    } catch {
+      setError("Failed to connect to backend.");
+    }
+    setLoading(false);
+  };
 
   const handleProceed = () => {
     update({
-      vitals: { spo2: oxygen, pulse },
+      vitals: { oxygen },
     });
     onProceed();
   };
+
+  const canProceed = oxygen !== null && oxygen > 0;
 
   return (
     <div className="relative w-full min-h-screen bg-white font-sans overflow-hidden flex flex-col">
@@ -99,51 +120,43 @@ const OxygenPulsePage = ({ onProceed }) => {
             </div>
 
             <h2 className="text-2xl font-bold text-gray-800 mt-4 mb-3 text-center">
-              Oxygen & Pulse
+              Oxygen Saturation
             </h2>
 
             <p className="text-base text-gray-700 mb-3 text-center">
               Please place your finger in the pulse oximeter
             </p>
 
-            {/* Calculated card */}
-            <div className="bg-white rounded-xl p-5 w-full shadow-md mt-2">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2 text-center">
-                Calculated
-              </h3>
-              <p className="text-sm text-gray-700 mb-4 text-center">
-                Kindly enter the values shown
-              </p>
-
-              <div className="flex w-full gap-3">
-                <div className="flex flex-col items-center flex-1">
-                  <label className="text-sm text-gray-700 mb-1">Oxygen</label>
-                  <input
-                    type="number"
-                    value={oxygen}
-                    onChange={(e) => setOxygen(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-center"
-                    inputMode="numeric"
-                    aria-label="oxygen"
-                  />
+            {/* Oxygen measurement card */}
+            <div className="bg-white rounded-xl p-5 w-full shadow-md mt-2 mb-5 flex flex-col items-center">
+              <PrimaryButton
+                onClick={triggerOxygen}
+                disabled={loading}
+                className={`w-full max-w-xs bg-orange-500 hover:bg-orange-600 transition-all duration-300 text-white font-bold px-8 py-2 rounded-lg shadow-lg mb-4 ${
+                  loading ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                style={{ fontSize: "1.1rem" }}
+              >
+                {loading ? "Measuring..." : "Measure Oxygen"}
+              </PrimaryButton>
+              {error && (
+                <div className="text-red-500 text-center font-semibold mb-4">
+                  {error}
                 </div>
-
-                <div className="flex flex-col items-center flex-1">
-                  <label className="text-sm text-gray-700 mb-1">Pulse</label>
-                  <input
-                    type="number"
-                    value={pulse}
-                    onChange={(e) => setPulse(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-2 py-1 text-center"
-                    inputMode="numeric"
-                    aria-label="pulse"
-                  />
+              )}
+              {oxygen !== null && (
+                <div className="text-orange-500 font-bold text-5xl flex items-center gap-2 select-none">
+                  {oxygen}%
+                  <span role="img" aria-label="oxygen">
+                    🩸
+                  </span>
                 </div>
-              </div>
-              <div className="mt-4 pt-4 border-t text-sm text-gray-600">
-                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
-                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
-              </div>
+              )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t text-sm text-gray-600">
+              <p>Extracted Gender: {data.patient?.gender || "unknown"}</p>
+              <p>Extracted Age: {data.patient?.age || "unknown"}</p>
             </div>
           </div>
         </main>
@@ -153,7 +166,7 @@ const OxygenPulsePage = ({ onProceed }) => {
           {/* Illustration */}
           <div className="w-full max-w-xs h-28 mb-3">
             <video
-              src={MeditatingGirlVideo}
+              src={Oximeter}
               autoPlay
               loop
               muted
@@ -179,6 +192,7 @@ const OxygenPulsePage = ({ onProceed }) => {
             <PrimaryButton
               className="w-full justify-center"
               onClick={handleProceed}
+              disabled={!canProceed}
             >
               Proceed →
             </PrimaryButton>

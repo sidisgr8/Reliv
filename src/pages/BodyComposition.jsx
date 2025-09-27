@@ -1,5 +1,5 @@
 // src/pages/BodyComposition.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
@@ -11,29 +11,62 @@ const BodyComposition = () => {
   const [impedance, setImpedance] = useState("");
   const [height, setHeight] = useState("");
   const [error, setError] = useState("");
+  const [isPolling, setIsPolling] = useState(false);
   const navigate = useNavigate();
-  const { data, update } = useHealth(); // Get patient data from context
+  const { data, update } = useHealth();
 
-  const handleFetchFromDevice = async () => {
+  const handleTriggerHeight = async () => {
     try {
-      // This URL now points directly to your Python Flask backend
-      const response = await fetch('http://localhost:5001/get_ble_data');
+      const response = await fetch("http://localhost:5001/trigger_height", {
+        method: "POST",
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data = await response.json();
-      if (data && data.weight && data.impedance) {
-        setWeight(data.weight);
-        setImpedance(data.impedance);
-        setError("");
+      const result = await response.json();
+      if (result.status === "success") {
+        setIsPolling(true);
+        setError("Measuring height...");
       } else {
-        setError("Readings not taken. Please step on the device and try again.");
+        setError(result.message);
       }
-    } catch (error) {
-      console.error('Failed to fetch data from device:', error);
-      setError('Device not found. Please ensure the Python script is running and the device is connected.');
+    } catch (err) {
+      console.error("Failed to trigger height measurement:", err);
+      setError("Failed to trigger height measurement. Please try again.");
     }
   };
+
+  useEffect(() => {
+    if (!isPolling) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch("http://localhost:5001/get_ble_data");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.error) {
+          setError(result.error);
+        } else if (result.weight != null && result.impedance != null && result.height != null) {
+          setWeight(result.weight);
+          setImpedance(result.impedance);
+          setHeight(result.height);
+          setError("");
+          setIsPolling(false);
+        } else {
+          setError("Waiting for all data...");
+        }
+      } catch (err) {
+        console.error("Failed to fetch data from device:", err);
+        setError("Error fetching data. Retrying...");
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isPolling]);
 
   const handleSubmit = () => {
     update({
@@ -67,10 +100,16 @@ const BodyComposition = () => {
               <h3 className="text-lg font-semibold text-gray-700 mb-2 text-center">
                 Enter your details
               </h3>
-              {error && <p className="text-red-500 text-center text-sm mb-4">{error}</p>}
+              {error && (
+                <p className="text-red-500 text-center text-sm mb-4">{error}</p>
+              )}
               <div className="flex flex-col gap-4">
-                <PrimaryButton className="w-full" onClick={handleFetchFromDevice}>
-                  Fetch from Device
+                <PrimaryButton
+                  className="w-full"
+                  disabled={isPolling}
+                  onClick={handleTriggerHeight}
+                >
+                  {isPolling ? "Fetching..." : "Measure Height"}
                 </PrimaryButton>
                 <div>
                   <label className="text-sm text-gray-700 mb-1 font-medium">
@@ -112,8 +151,8 @@ const BodyComposition = () => {
                   />
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
-                    <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
-                    <p>Extracted Age: {data.patient.age || 'unknown'}</p>
+                  <p>Extracted Gender: {data.patient.gender || "unknown"}</p>
+                  <p>Extracted Age: {data.patient.age || "unknown"}</p>
                 </div>
               </div>
             </div>
@@ -122,16 +161,15 @@ const BodyComposition = () => {
             </PrimaryButton>
           </div>
         </main>
-        {/* Footer pagination */}
         <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4 pt-3">
-            <div className="flex items-center space-x-2 mb-3">
-                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
-                <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
-                <span className="text-xs text-gray-500 ml-2">5/5 complete</span>
-            </div>
+          <div className="flex items-center space-x-2 mb-3">
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
+            <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
+            <span className="text-xs text-gray-500 ml-2">5/5 complete</span>
+          </div>
         </footer>
       </div>
     </div>

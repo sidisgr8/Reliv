@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // ✅ Added for navigation
+import { useNavigate } from "react-router-dom"; // Added for navigation
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import TopEllipseBackground from "../components/TopEllipseBackground";
-import ClockTimerVideo from "../assets/ClockTimer.mp4"; // <-- Import ClockTimer.mp4
+import TemparatureGun from "../assets/TemparatureGun.mp4";
 import { useHealth } from "../context/HealthContext";
 
-// ---------------- Splash Screen ----------------
+// Splash screen before Body Temperature check
 const Splash = ({ onComplete }) => {
   useEffect(() => {
     const t = setTimeout(() => onComplete(), 2000);
@@ -33,13 +33,11 @@ const Splash = ({ onComplete }) => {
           <Logo />
         </div>
 
-        {/* Text */}
+        {/* Informative Text */}
         <div className="max-w-xs text-center">
           <h2 className="text-[18px] font-semibold text-gray-900 mb-4">
             Now we’ll be checking your{" "}
-            <span className="text-[#E85C25] font-semibold">
-              Body temperature
-            </span>
+            <span className="text-[#E85C25] font-semibold">Body temperature</span>
           </h2>
 
           <h3 className="text-[28px] font-extrabold text-gray-900 mb-6">
@@ -47,8 +45,7 @@ const Splash = ({ onComplete }) => {
           </h3>
 
           <p className="text-[14px] text-center leading-snug text-gray-700">
-            Please <span className="text-[#E85C25]">follow</span> the steps
-            carefully that will be shown
+            Please <span className="text-[#E85C25]">follow</span> the steps carefully that will be shown
           </p>
         </div>
       </div>
@@ -56,23 +53,45 @@ const Splash = ({ onComplete }) => {
   );
 };
 
-// ---------------- Main Temperature Page ----------------
+// Main Body Temperature measurement page
 const BodyTemperaturePage = () => {
-  const [temperature, setTemperature] = useState("");
-  const navigate = useNavigate(); // ✅ Hook for navigation
-  const { data, update } = useHealth(); // Get patient data
+  const [temperature, setTemperature] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { data, update } = useHealth();
+  const navigate = useNavigate();
 
-// Corrected code for src/pages/BodyTemperature.jsx
-const handleNext = () => {
-  update({
-    vitals: { tempF: temperature }, // ✅ Correctly nested and named
-  });
-  navigate("/eyesight");
-};
+  const triggerTemperature = async () => {
+    setLoading(true);
+    setError("");
+    setTemperature(null);
+    try {
+      const resp = await fetch("http://localhost:5001/trigger_temperature", {
+        method: "POST",
+      });
+      const result = await resp.json();
+      if (result.status === "success" && result.value !== null) {
+        setTemperature(result.value);
+      } else {
+        setError(result.message || "Error receiving temperature data.");
+      }
+    } catch {
+      setError("Failed to connect to backend.");
+    }
+    setLoading(false);
+  };
+
+  const canProceed = temperature !== null && temperature > 0;
+
+  const handleProceed = () => {
+    update({ vitals: { temperature } });
+    // Replace the route "/eyesight" as per your routing
+    navigate("/eyesight");
+  };
 
   return (
     <div className="relative w-full min-h-screen bg-white font-sans overflow-hidden flex flex-col">
-      {/* Top ellipse */}
+      {/* Top ellipse background */}
       <TopEllipseBackground color="#FFF1EA" height="50%" />
 
       <div className="relative z-10 flex flex-col flex-grow p-4 md:p-6">
@@ -98,30 +117,44 @@ const handleNext = () => {
               Body Temperature
             </h2>
 
-            {/* Calculated card */}
-            <div className="bg-white rounded-xl p-5 w-full shadow-md mt-2">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2 text-center">
-                Calculated
-              </h3>
-              <p className="text-sm text-gray-700 mb-4 text-center">
-                Kindly enter the values shown
-              </p>
+            {/* Measurement card */}
+            <div className="bg-white rounded-xl p-5 w-full shadow-md mt-2 mb-5 flex flex-col items-center">
+              <PrimaryButton
+                onClick={triggerTemperature}
+                disabled={loading}
+                className={`w-full max-w-xs bg-orange-500 hover:bg-orange-600 transition-all duration-300 text-white font-bold px-8 py-2 rounded-lg shadow-lg mb-4 ${
+                  loading ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                style={{ fontSize: "1.1rem" }}
+              >
+                {loading ? "Measuring..." : "Measure Temperature"}
+              </PrimaryButton>
 
-              {/* Temperature input */}
-              <div className="flex items-center gap-2 justify-center">
-                <input
-                  type="number"
-                  value={temperature}
-                  onChange={(e) => setTemperature(e.target.value)}
-                  className="w-20 border border-gray-300 rounded px-2 py-1 text-center"
-                  inputMode="numeric"
-                  aria-label="temperature"
-                />
-                <span className="text-sm text-gray-700">Farenheit</span>
-              </div>
-               <div className="mt-4 pt-4 border-t text-sm text-gray-600">
-                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
-                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
+              {error && (
+                <div
+                  className="text-red-500 text-center font-semibold mb-4"
+                  role="alert"
+                >
+                  {error}
+                </div>
+              )}
+
+              {temperature !== null && (
+                <div
+                  className="text-orange-500 font-bold text-5xl flex items-center gap-2 select-none"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {temperature.toFixed(1)}°C
+                  <span role="img" aria-label="thermometer emoji">
+                    🌡️
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t text-sm text-gray-600 flex flex-col space-y-1">
+                <p>Extracted Gender: {data.patient?.gender || "unknown"}</p>
+                <p>Extracted Age: {data.patient?.age || "unknown"}</p>
               </div>
             </div>
           </div>
@@ -129,18 +162,16 @@ const handleNext = () => {
 
         {/* Footer */}
         <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4 pt-3">
-          {/* Done text */}
-          <p className="text-lg font-semibold text-[#E85C25] mb-2">Done!</p>
-
           {/* Illustration */}
-          <div className="w-full max-w-[150px] mb-3">
+          <div className="w-full max-w-xs h-48 mb-4">
             <video
-              src={ClockTimerVideo} // <-- Use ClockTimer.mp4 here
+              src={TemparatureGun}
               autoPlay
               loop
               muted
               playsInline
-              className="w-full h-auto"
+              className="w-full h-full object-contain"
+              aria-hidden="true"
             />
           </div>
 
@@ -154,20 +185,22 @@ const handleNext = () => {
             <span className="text-xs text-gray-500 ml-2">3/5 complete</span>
           </div>
 
-          {/* Next button with navigation */}
+          {/* Proceed button */}
           <PrimaryButton
-      className="w-full max-w-xs justify-center"
-      onClick={handleNext}
-    >
-      Next →
-    </PrimaryButton>
+            className="w-full max-w-xs justify-center"
+            onClick={handleProceed}
+            disabled={!canProceed}
+            aria-disabled={!canProceed}
+          >
+            Proceed →
+          </PrimaryButton>
         </footer>
       </div>
     </div>
   );
 };
 
-// ---------------- Wrapper ----------------
+// Wrapper component managing splash and main page display
 export default function BodyTemperature() {
   const [currentPage, setCurrentPage] = useState("splash");
 

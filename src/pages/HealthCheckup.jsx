@@ -1,39 +1,27 @@
-// pages/HealthCheckup.jsx
-
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import PrimaryButton from "../components/PrimaryButton";
 import MeditatingGirlVideo from "../assets/MeditatingGirl.mp4";
+import BPband from "../assets/BPband.mp4"
 import { useHealth } from "../context/HealthContext";
-// --- Reusable UI Components ---
 
-const WaveBackground = ({ className }) => {
-  return (
-    <div className={`w-full h-full overflow-hidden leading-0 ${className || ''}`}>
-      <svg
-        viewBox="0 0 1440 300"
-        preserveAspectRatio="none"
-        className="block w-full h-full"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          fill="#fff1ea"
-          d="M0,150 C480,80 960,220 1440,150 L1440,300 L0,300 Z"
-        />
-      </svg>
-    </div>
-  );
-};
+const WaveBackground = ({ className }) => (
+  <div className={`w-full h-full overflow-hidden leading-0 ${className || ""}`}>
+    <svg
+      viewBox="0 0 1440 300"
+      preserveAspectRatio="none"
+      className="block w-full h-full"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path fill="#fff1ea" d="M0,150 C480,80 960,220 1440,150 L1440,300 L0,300 Z" />
+    </svg>
+  </div>
+);
 
-// --- Page Components ---
-
-// Splash Screen Component (displays for 2 seconds)
 const HealthCheckPage = ({ onComplete }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onComplete();
-    }, 2000);
+    const timer = setTimeout(onComplete, 2000);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -70,30 +58,56 @@ const HealthCheckPage = ({ onComplete }) => {
   );
 };
 
-// BloodPressure Page
 const BloodPressure = ({ onProceed }) => {
-  const [diastolic, setDiastolic] = useState("");
-  const [systolic, setSystolic] = useState("");
-  const { data, update } = useHealth(); // Get patient data
+  const [bpResult, setBpResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { data, update } = useHealth();
 
-  const handleProceed = () => {
-    update({
-      vitals: { diastolic, systolic },
-    });
-    onProceed();
+  const triggerBloodPressure = async () => {
+    setLoading(true);
+    setError("");
+    setBpResult(null);
+    try {
+      const resp = await fetch("http://localhost:5001/trigger_blood_pressure", {
+        method: "POST",
+      });
+      const result = await resp.json();
+      if (result.status === "success" && result.bpString) {
+        const match = result.bpString.match(/BP: (\d+)\/(\d+) BPM: (\d+)/);
+        if (match) {
+          const systolic = match[1];
+          const diastolic = match[2];
+          const bpm = match[3];
+          setBpResult({ systolic, diastolic, bpm });
+          update({
+            vitals: { systolic, diastolic, bpm },
+          });
+        } else {
+          setError("Could not parse blood pressure data.");
+        }
+      } else {
+        setError(result.message || "Error receiving blood pressure data.");
+      }
+    } catch {
+      setError("Failed to connect to backend.");
+    }
+    setLoading(false);
   };
+
+  const canProceed =
+    bpResult && bpResult.systolic && bpResult.diastolic && bpResult.bpm;
 
   return (
     <div className="relative w-full h-screen bg-white font-sans overflow-hidden">
-      {/* Background Wave */}
       <div
         className="absolute top-0 left-0 w-full h-[60%] z-0 bg-[#FFF1EA]"
         style={{ clipPath: "ellipse(120% 100% at 50% -40%)" }}
-      ></div>
-
-      {/* Add scrollable container */}
-      <div className="relative z-10 h-full flex flex-col p-5 overflow-y-auto" style={{ maxHeight: "100vh" }}>
-        {/* Top Bar */}
+      />
+      <div
+        className="relative z-10 h-full flex flex-col p-5 overflow-y-auto"
+        style={{ maxHeight: "100vh" }}
+      >
         <header className="flex-shrink-0 flex items-center">
           <button
             onClick={() => window.history.back()}
@@ -102,52 +116,76 @@ const BloodPressure = ({ onProceed }) => {
             ←
           </button>
         </header>
-
-        {/* Content */}
         <main className="flex-grow flex flex-col items-center pt-2">
           <Logo />
           <h2 className="text-2xl font-bold text-gray-800 mt-4 mb-6">
             Blood Pressure
           </h2>
-
           <div className="bg-white rounded-xl p-5 w-full max-w-xs shadow-md">
             <h3 className="text-lg font-semibold text-center text-gray-700 mb-4">
-              Calculated
+              Measurement
             </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <label className="text-gray-600 font-medium">Diastolic</label>
-                <input
-                  type="number"
-                  value={diastolic}
-                  onChange={(e) => setDiastolic(e.target.value)}
-                  className="w-28 text-center p-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-800"
-                  placeholder="Enter"
-                />
-              </div>
-              <div className="flex justify-between items-center">
-                <label className="text-gray-600 font-medium">Systolic</label>
-                <input
-                  type="number"
-                  value={systolic}
-                  onChange={(e) => setSystolic(e.target.value)}
-                  className="w-28 text-center p-2 border border-gray-300 rounded-lg bg-white font-bold text-gray-800"
-                  placeholder="Enter"
-                />
-              </div>
+            <div className="flex flex-col items-center">
+              <button
+                onClick={triggerBloodPressure}
+                disabled={loading}
+                className={`w-full bg-orange-500 hover:bg-orange-600 transition-all duration-300 text-white font-bold px-8 py-2 rounded-lg shadow-lg mb-4 ${
+                  loading ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                style={{ fontSize: "1.1rem" }}
+              >
+                {loading ? "Measuring..." : "Calculate"}
+              </button>
+              {(bpResult || error) && (
+                <div
+                  className="w-fit bg-white rounded-2xl shadow-lg px-6 py-4 border border-orange-300 flex flex-col items-center animate-fade-in mt-2"
+                  style={{ minWidth: 230 }}
+                >
+                  {error && (
+                    <div className="text-red-500 font-semibold text-center">
+                      {error}
+                    </div>
+                  )}
+                  {bpResult && (
+                    <>
+                      <span className="text-[1.1rem] font-bold text-gray-800 mb-2">
+                        🩺 Blood Pressure Result
+                      </span>
+                      <div className="flex flex-row mb-1 gap-8">
+                        <div className="flex flex-col items-center">
+                          <span className="text-orange-500 font-bold text-3xl">
+                            {bpResult.systolic}️
+                          </span>
+                          <span className="text-gray-600 font-medium">Sys 🩸</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-orange-500 font-bold text-3xl">
+                            {bpResult.diastolic}
+                          </span>
+                          <span className="text-gray-600 font-medium">Dia 💧</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-orange-500 font-bold text-3xl">
+                            {bpResult.bpm}
+                          </span>
+                          <span className="text-gray-600 font-medium">BPM ❤️</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="mt-4 pt-4 border-t text-sm text-gray-600">
-                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
-                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
+            <div className="mt-4 pt-4 border-t text-sm text-gray-600 flex flex-col space-y-1">
+              <p>Extracted Gender: {data.patient?.gender || "unknown"}</p>
+              <p>Extracted Age: {data.patient?.age || "unknown"}</p>
             </div>
           </div>
         </main>
-
-        {/* Bottom */}
         <footer className="flex-shrink-0 flex flex-col items-center justify-end pb-4">
           <div className="w-full max-w-xs h-48 mb-4">
             <video
-              src={MeditatingGirlVideo}
+              src={BPband}
               autoPlay
               loop
               muted
@@ -155,8 +193,6 @@ const BloodPressure = ({ onProceed }) => {
               className="w-full h-full object-contain"
             />
           </div>
-
-          {/* Pagination */}
           <div className="flex items-center space-x-2">
             <div className="w-2.5 h-2.5 bg-[#E85C25] rounded-full"></div>
             <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
@@ -165,10 +201,10 @@ const BloodPressure = ({ onProceed }) => {
             <div className="w-2.5 h-2.5 bg-gray-300 rounded-full"></div>
             <span className="text-xs text-gray-500 ml-2">1/5 complete</span>
           </div>
-
           <PrimaryButton
             className="w-full max-w-xs mt-4 justify-center"
-            onClick={handleProceed}
+            onClick={onProceed}
+            disabled={!canProceed}
           >
             Proceed →
           </PrimaryButton>
@@ -178,14 +214,13 @@ const BloodPressure = ({ onProceed }) => {
   );
 };
 
-// Main App component to control page navigation
 export default function App() {
   const [currentPage, setCurrentPage] = useState("splash");
-  const navigate = useNavigate(); // Add this line
+  const navigate = useNavigate();
 
   const showNextPage = () => setCurrentPage("blood");
   const goToOxygenPulse = () => {
-    navigate("/oxygen-pulse"); // Change this line
+    navigate("/oxygen-pulse");
   };
 
   switch (currentPage) {

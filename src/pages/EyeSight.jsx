@@ -63,13 +63,60 @@ const EyeSightTest = () => {
   const [leftEyeLine, setLeftEyeLine] = useState("");
   const [rightEyeLine, setRightEyeLine] = useState("");
   const navigate = useNavigate();
-  const { data, update } = useHealth(); // Get patient data
+  const { update } = useHealth();
+  const [eyeErrors, setEyeErrors] = useState({ left: "", right: "" });
+
+  const handleLeftChange = (e) => {
+    const value = e.target.value;
+    if (value === "" || (Number(value) >= 1 && Number(value) <= 11)) {
+      setLeftEyeLine(value);
+      setEyeErrors((prev) => ({ ...prev, left: "" }));
+    }
+  };
+
+  const handleRightChange = (e) => {
+    const value = e.target.value;
+    if (value === "" || (Number(value) >= 1 && Number(value) <= 11)) {
+      setRightEyeLine(value);
+      setEyeErrors((prev) => ({ ...prev, right: "" }));
+    }
+  };
+
+  const validateEyes = () => {
+    let isValid = true;
+    const errors = { left: "", right: "" };
+
+    if (!leftEyeLine || isNaN(leftEyeLine) || Number(leftEyeLine) < 1 || Number(leftEyeLine) > 11) {
+      errors.left = "Please enter a number between 1 and 11";
+      isValid = false;
+    }
+    if (!rightEyeLine || isNaN(rightEyeLine) || Number(rightEyeLine) < 1 || Number(rightEyeLine) > 11) {
+      errors.right = "Please enter a number between 1 and 11";
+      isValid = false;
+    }
+
+    setEyeErrors(errors);
+    return isValid;
+  };
 
   const handleSubmit = () => {
-    update({
-      vitals: { leftEye: leftEyeLine, rightEye: rightEyeLine },
-    });
-    navigate("/body-composition");
+    if (validateEyes()) {
+      const leftAdvice = Number(leftEyeLine) >= 9 ? "Good eye sight, maintain healthy habits." :
+                        Number(leftEyeLine) >= 3 ? "Fair eye sight, consider regular check-ups." :
+                        "Poor eye sight, consult a doctor.";
+      const rightAdvice = Number(rightEyeLine) >= 9 ? "Good eye sight, maintain healthy habits." :
+                          Number(rightEyeLine) >= 3 ? "Fair eye sight, consider regular check-ups." :
+                          "Poor eye sight, consult a doctor.";
+      update({
+        vitals: {
+          leftEye: leftEyeLine,
+          rightEye: rightEyeLine,
+          leftEyeAdvice: leftAdvice,
+          rightEyeAdvice: rightAdvice,
+        },
+      });
+      navigate("/body-composition");
+    }
   };
 
   return (
@@ -110,16 +157,21 @@ const EyeSightTest = () => {
               Left Eye: Cover your right eye and read the chart.
             </p>
             <label className="text-xs text-gray-600">
-              Enter the no. of the smallest line you could read (1-9)
+              Enter the no. of the smallest line you could read (1-11)
             </label>
             <input
               type="number"
               value={leftEyeLine}
-              onChange={(e) => setLeftEyeLine(e.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1 mb-4"
+              onChange={handleLeftChange}
+              className={`w-full border ${eyeErrors.left ? "border-red-500" : "border-gray-300"} rounded px-2 py-1 mb-2`}
               inputMode="numeric"
               aria-label="Left eye line"
+              min="1"
+              max="11"
             />
+            {eyeErrors.left && (
+              <p className="text-red-500 text-xs mb-4">{eyeErrors.left}</p>
+            )}
 
             {/* Right eye input */}
             <p className="text-sm text-gray-700 mb-1 font-medium">
@@ -129,18 +181,22 @@ const EyeSightTest = () => {
             <input
               type="number"
               value={rightEyeLine}
-              onChange={(e) => setRightEyeLine(e.target.value)}
-              className="w-full border border-gray-300 rounded px-2 py-1 mb-6"
+              onChange={handleRightChange}
+              className={`w-full border ${eyeErrors.right ? "border-red-500" : "border-gray-300"} rounded px-2 py-1 mb-2`}
               inputMode="numeric"
               aria-label="Right eye line"
+              min="1"
+              max="11"
             />
-            
-            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm text-gray-600">
-                <p>Extracted Gender: {data.patient.gender || 'unknown'}</p>
-                <p>Extracted Age: {data.patient.age || 'unknown'}</p>
-            </div>
-            
-            <PrimaryButton className="w-full mt-4" onClick={handleSubmit}>
+            {eyeErrors.right && (
+              <p className="text-red-500 text-xs mb-6">{eyeErrors.right}</p>
+            )}
+
+            <PrimaryButton
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={!!eyeErrors.left || !!eyeErrors.right || !leftEyeLine || !rightEyeLine}
+            >
               Procced →
             </PrimaryButton>
           </div>
@@ -179,4 +235,4 @@ export default function EyeSight() {
     default:
       return <EyeSightSplash onComplete={showTest} />;
   }
-};
+}

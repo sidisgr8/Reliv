@@ -11,9 +11,9 @@ const defaultData = {
   vitals: {
     systolic: "",    // BP systolic
     diastolic: "",   // BP diastolic
-    spo2: "",        // Oxygen %
+    oxygen: "",      // ✅ Oxygen %
     pulse: "",       // BPM
-    tempF: "",       // Temperature in °F
+    temperature: "",       // Temperature in °F
     leftEye: "",     // Eye chart smallest line read (1-9)
     rightEye: "",
     weight: "",      // Weight in kg
@@ -33,6 +33,7 @@ export function HealthProvider({ children }) {
     }
   });
 
+  // persist to sessionStorage whenever data changes
   useEffect(() => {
     sessionStorage.setItem("reliv-health", JSON.stringify(data));
   }, [data]);
@@ -46,6 +47,7 @@ export function HealthProvider({ children }) {
       vitals: { ...prev.vitals, ...(patch?.vitals || {}) },
     }));
 
+  // reset to defaultData
   const reset = () => setData(defaultData);
 
   return (

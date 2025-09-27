@@ -26,12 +26,16 @@ const PaymentGate = () => {
   
   const title = needsReport ? "Your Report is Ready!" : "Complete Your Purchase";
 
-  const handleSuccessfulPayment = async () => {
+  // src/pages/PaymentGate.jsx
+
+// src/pages/PaymentGate.jsx
+
+const handleSuccessfulPayment = async () => {
     // After payment, try to send a receipt if there are items in the cart or a report was generated
     if ((needsReport || cart.length > 0) && healthData.patient.email) {
       try {
         console.log("Attempting to send receipt...");
-        await fetch('/api/send-receipt', {
+        await fetch('http://localhost:5000/api/send-receipt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -47,7 +51,7 @@ const PaymentGate = () => {
         // Don't block the user flow if the email fails
       }
     }
-  
+
     // Navigate to the next page
     if (needsReport) {
       navigate("/report", { state: { cart } });
@@ -55,7 +59,6 @@ const PaymentGate = () => {
       navigate("/order-success", { state: { cart } });
     }
   };
-
   const startPayment = async () => {
     if (isRunMode) {
       // --- RUN MODE: Razorpay Integration ---
