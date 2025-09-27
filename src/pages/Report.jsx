@@ -576,7 +576,16 @@ export default function Report() {
       const res = await fetch("http://localhost:5000/api/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+<<<<<<< HEAD
         body: JSON.stringify({ to: patient.email, name: patient.name, healthData: data, reportImage: imgData }),
+=======
+        body: JSON.stringify({
+          to: patient.email,
+          name: patient.name,
+          healthData: data,
+          reportImage: imgData,
+        }),
+>>>>>>> 3cb2e83a580a8f3ffbfba2274ff48c3605341dc1
       });
       const result = await res.json();
       if (result.ok) {
@@ -599,11 +608,24 @@ export default function Report() {
     }
     setIsSendingDoctorReport(true);
     const imgData = await captureReport();
+<<<<<<< HEAD
+=======
+    
+>>>>>>> 3cb2e83a580a8f3ffbfba2274ff48c3605341dc1
     try {
       const res = await fetch("http://localhost:5000/api/send-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+<<<<<<< HEAD
         body: JSON.stringify({ to: doctorEmail, name: patient.name, healthData: data, reportImage: imgData }),
+=======
+        body: JSON.stringify({
+          to: doctorEmail,
+          name: patient.name,
+          healthData: data,
+          reportImage: imgData,
+        }),
+>>>>>>> 3cb2e83a580a8f3ffbfba2274ff48c3605341dc1
       });
       const result = await res.json();
       if (result.ok) {
@@ -1109,6 +1131,7 @@ export default function Report() {
             onClick={handleReadAloud}
             className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-blue-700 transition-all duration-200"
           >
+<<<<<<< HEAD
             {isSpeaking ? "Pause Reading" : "Listen to Report"}
           </motion.button>
           <motion.button
@@ -1123,12 +1146,25 @@ export default function Report() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+=======
+            {isSpeaking ? "Stop Reading" : "Read Report Aloud"}
+          </button>
+          <button
+            onClick={handleSendMyReport}
+            disabled={isSendingMyReport || !patient.email}
+            className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSendingMyReport ? "Sending..." : "Email My Report"}
+          </button>
+          <button
+>>>>>>> 3cb2e83a580a8f3ffbfba2274ff48c3605341dc1
             onClick={() => navigate("/")}
             className="bg-gray-200 text-gray-800 font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-gray-300 transition-all duration-200"
           >
             Home
           </motion.button>
         </div>
+<<<<<<< HEAD
 
         <div ref={emailSectionRef} className="mt-6 text-center">
           <input
@@ -1162,6 +1198,27 @@ export default function Report() {
             className="fixed bottom-0 left-0 right-0 z-50"
           />
         )}
+=======
+        
+        <div className="mt-6 text-center">
+            <input
+              type="email"
+              name="doctorEmail"
+              value={doctorEmail}
+              onChange={e => setDoctorEmail(e.target.value)}
+              onFocus={handleInputFocus}
+              placeholder="Enter Doctor's Email..."
+              className="border rounded-lg px-4 py-3 w-full max-w-sm mx-auto shadow-sm focus:ring-2 focus:ring-orange-400"
+            />
+             <button
+            onClick={handleSendDoctorReport}
+            disabled={isSendingDoctorReport || !doctorEmail}
+            className="mt-4 bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105 disabled:opacity-50"
+          >
+            {isSendingDoctorReport ? "Sending..." : "Send to Doctor"}
+          </button>
+        </div>
+>>>>>>> 3cb2e83a580a8f3ffbfba2274ff48c3605341dc1
       </div>
     </motion.div>
   );
