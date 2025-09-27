@@ -65,18 +65,16 @@ const BodyTemperaturePage = () => {
     setLoading(true);
     setError("");
     setTemperature(null);
-    try {
-      const resp = await fetch("http://localhost:5001/trigger_temperature", {
-        method: "POST",
-      });
-      const result = await resp.json();
-      if (result.status === "success" && result.value !== null) {
-        setTemperature(result.value);
-      } else {
-        setError(result.message || "Error receiving temperature data.");
-      }
-    } catch {
-      setError("Failed to connect to backend.");
+    // Simulate a successful API call with mock data
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    const mockResult = {
+      status: "success",
+      value: 37.5,
+    };
+    if (mockResult.status === "success" && mockResult.value !== null) {
+      setTemperature(mockResult.value);
+    } else {
+      setError(mockResult.message || "Error receiving temperature data.");
     }
     setLoading(false);
   };

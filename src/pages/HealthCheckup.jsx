@@ -68,29 +68,27 @@ const BloodPressure = ({ onProceed }) => {
     setLoading(true);
     setError("");
     setBpResult(null);
-    try {
-      const resp = await fetch("http://localhost:5001/trigger_blood_pressure", {
-        method: "POST",
-      });
-      const result = await resp.json();
-      if (result.status === "success" && result.bpString) {
-        const match = result.bpString.match(/BP: (\d+)\/(\d+) BPM: (\d+)/);
-        if (match) {
-          const systolic = match[1];
-          const diastolic = match[2];
-          const bpm = match[3];
-          setBpResult({ systolic, diastolic, bpm });
-          update({
-            vitals: { systolic, diastolic, bpm },
-          });
-        } else {
-          setError("Could not parse blood pressure data.");
-        }
+    // Simulate a successful API call with mock data
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    const mockResult = {
+      status: "success",
+      bpString: "BP: 120/80 BPM: 70",
+    };
+    if (mockResult.status === "success" && mockResult.bpString) {
+      const match = mockResult.bpString.match(/BP: (\d+)\/(\d+) BPM: (\d+)/);
+      if (match) {
+        const systolic = match[1];
+        const diastolic = match[2];
+        const bpm = match[3];
+        setBpResult({ systolic, diastolic, bpm });
+        update({
+          vitals: { systolic, diastolic, bpm },
+        });
       } else {
-        setError(result.message || "Error receiving blood pressure data.");
+        setError("Could not parse blood pressure data.");
       }
-    } catch {
-      setError("Failed to connect to backend.");
+    } else {
+      setError(mockResult.message || "Error receiving blood pressure data.");
     }
     setLoading(false);
   };

@@ -70,18 +70,16 @@ const OxygenPulsePage = ({ onProceed }) => {
     setLoading(true);
     setError("");
     setOxygen(null);
-    try {
-      const resp = await fetch("http://localhost:5001/trigger_oxygen", {
-        method: "POST",
-      });
-      const result = await resp.json();
-      if (result.status === "success" && result.value !== null) {
-        setOxygen(result.value);
-      } else {
-        setError(result.message || "Error receiving oxygen data.");
-      }
-    } catch {
-      setError("Failed to connect to backend.");
+    // Simulate a successful API call with mock data
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    const mockResult = {
+      status: "success",
+      value: 98,
+    };
+    if (mockResult.status === "success" && mockResult.value !== null) {
+      setOxygen(mockResult.value);
+    } else {
+      setError(mockResult.message || "Error receiving oxygen data.");
     }
     setLoading(false);
   };

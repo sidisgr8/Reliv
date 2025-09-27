@@ -16,57 +16,24 @@ const BodyComposition = () => {
   const { data, update } = useHealth();
 
   const handleTriggerHeight = async () => {
-    try {
-      const response = await fetch("http://localhost:5001/trigger_height", {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-      if (result.status === "success") {
-        setIsPolling(true);
-        setError("Measuring height...");
-      } else {
-        setError(result.message);
-      }
-    } catch (err) {
-      console.error("Failed to trigger height measurement:", err);
-      setError("Failed to trigger height measurement. Please try again.");
-    }
+    setIsPolling(true);
+    setError("Measuring height...");
   };
 
   useEffect(() => {
     if (!isPolling) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch("http://localhost:5001/get_ble_data");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        if (result.error) {
-          setError(result.error);
-        } else if (result.weight != null && result.impedance != null && result.height != null) {
-          setWeight(result.weight);
-          setImpedance(result.impedance);
-          setHeight(result.height);
-          setError("");
-          setIsPolling(false);
-        } else {
-          setError("Waiting for all data...");
-        }
-      } catch (err) {
-        console.error("Failed to fetch data from device:", err);
-        setError("Error fetching data. Retrying...");
-      }
+    const timeout = setTimeout(() => {
+        setWeight(70);
+        setImpedance(500);
+        setHeight(175);
+        setError("");
+        setIsPolling(false);
     }, 2000);
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeout);
   }, [isPolling]);
+
 
   const handleSubmit = () => {
     update({
