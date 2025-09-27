@@ -204,10 +204,12 @@ function assessEyes(left, right) {
   return { summary, note, label };
 }
 
+
+
 const generatePdfFromImage = (imageBase64, options = {}) => {
   return new Promise((resolve, reject) => {
     try {
-      const config = { zoom: options.zoom || 1.2, margin: options.margin || 20, showPageNumbers: options.showPageNumbers ?? true, maxPages: options.maxPages || 20 };
+      const config = { zoom: options.zoom || 0.8, margin: options.margin || 20, showPageNumbers: options.showPageNumbers ?? true, maxPages: options.maxPages || 20 };
       const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: config.margin });
       const buffers = [];
       doc.on("data", buffers.push.bind(buffers));
@@ -242,7 +244,6 @@ const generatePdfFromImage = (imageBase64, options = {}) => {
     }
   });
 };
-
 class HealthReportPDFGenerator {
   constructor() {
     this.doc = null;
