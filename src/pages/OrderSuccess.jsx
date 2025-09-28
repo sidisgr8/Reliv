@@ -1,13 +1,15 @@
 // src/pages/OrderSuccess.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import TopEllipseBackground from '../components/TopEllipseBackground';
+import UVCleansingAnimation from '../components/UVCleansingAnimation'; // Import the component
 
 export default function OrderSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
   const stockUpdated = useRef(false);
+  const [showCleansing, setShowCleansing] = useState(true); // Start with cleansing animation
 
   // Stock reduction logic for the purchased kits
   useEffect(() => {
@@ -38,14 +40,19 @@ export default function OrderSuccess() {
     }
   }, [location.state]);
 
-  // Redirect to home after a few seconds
-  useEffect(() => {
+  const handleCleansingComplete = () => {
+    // After cleansing, show the success message for a bit, then redirect
+    setShowCleansing(false);
     const timer = setTimeout(() => {
       navigate('/');
-    }, 4000); // 4 seconds
+    }, 4000); // 4 seconds for success message
 
     return () => clearTimeout(timer); // Cleanup timer on unmount
-  }, [navigate]);
+  };
+
+  if (showCleansing) {
+    return <UVCleansingAnimation onComplete={handleCleansingComplete} />;
+  }
 
   return (
     <div className="relative min-h-screen bg-gray-50 font-sans flex flex-col items-center justify-center text-center px-4">

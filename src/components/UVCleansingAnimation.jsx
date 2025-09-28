@@ -41,8 +41,8 @@ export default function UVCleansingAnimation({ onComplete }) {
             }
           `}
         </style>
-        <h2 className="text-3xl font-bold mb-4 pulsing-text">UV Cleansing...</h2>
-        <p className="mb-6">Please wait while we sanitize the equipment.</p>
+        <h2 className="text-3xl font-bold mb-4 pulsing-text">Email Sent</h2>
+        <p className="mb-6">Please check your inbox</p>
         
         <div className="w-64 bg-gray-700 rounded-full h-2.5">
           <div 
